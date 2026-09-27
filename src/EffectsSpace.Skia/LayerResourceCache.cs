@@ -55,7 +55,7 @@ internal sealed class LayerResourceCache : IDisposable
         public void Dispose() { Geometry?.Dispose(); Filter?.Dispose(); Geometry = null; Filter = null; }
     }
 
-    private sealed record GeometryState(LayerKind Kind, double Width, double Height, double Radius, int Points, double Inner, bool Closed);
+    private readonly record struct GeometryState(LayerKind Kind, double Width, double Height, double Radius, int Points, double Inner, bool Closed);
     private sealed record EffectState(EffectKind Kind, bool Enabled, string Color, float[] Values)
     {
         public static EffectState Capture(LayerEffect effect, double time) => new(effect.Kind, effect.Enabled, effect.Color,

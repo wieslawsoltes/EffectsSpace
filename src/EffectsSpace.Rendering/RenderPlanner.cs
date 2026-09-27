@@ -1,4 +1,4 @@
-using EffectsSpace.Animation;
+using System.Numerics;
 using EffectsSpace.Core;
 
 namespace EffectsSpace.Rendering;
@@ -15,8 +15,10 @@ public static class RenderPlanner
         foreach (var item in Build(comp, time).Layers.Reverse())
         {
             var l = item.Layer; if (l.Locked || l.Kind == LayerKind.Adjustment || item.Opacity <= 0) continue;
-            var local = TransformEvaluator.ToLocal(comp, l, time, point);
-            if (local is not { } p || !new RectD(0, 0, l.Width, l.Height).Contains(p)) continue;
+            if (!Matrix3x2.Invert(item.World, out var inverse)) continue;
+            var local = Vector2.Transform(new((float)point.X, (float)point.Y), inverse);
+            var p = new Vec2(local.X, local.Y);
+            if (!new RectD(0, 0, l.Width, l.Height).Contains(p)) continue;
             if (l.Kind == LayerKind.Ellipse)
             {
                 var x = (p.X - l.Width / 2) / (l.Width / 2); var y = (p.Y - l.Height / 2) / (l.Height / 2);

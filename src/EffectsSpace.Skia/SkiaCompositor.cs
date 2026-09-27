@@ -9,7 +9,13 @@ namespace EffectsSpace.Skia;
 /// <summary>Renders directly into the host's Skia canvas. Preview never uploads a CPU-rendered full frame.</summary>
 public sealed class SkiaCompositor : IDisposable
 {
-    private sealed record CachedImage(SKImage Image, long Bytes, long Stamp);
+    private sealed class CachedImage(SKImage image, long bytes, long stamp, byte[]? payload)
+    {
+        public SKImage Image { get; } = image;
+        public long Bytes { get; } = bytes;
+        public long Stamp { get; set; } = stamp;
+        public byte[]? Payload { get; } = payload;
+    }
     private readonly Dictionary<string, CachedImage> _images = new(StringComparer.Ordinal);
     private long _stamp, _bytes;
     public SKTypeface Typeface { get; set; } = SKTypeface.Default;
@@ -144,7 +150,9 @@ public sealed class SkiaCompositor : IDisposable
             var matrix = Matrix(item.World); canvas.Concat(in matrix);
             var masks = MaskRenderer.HasMasks(layer);
             var simple = item.Opacity >= 1 && (matte || layer.Blend == LayerBlend.Normal)
-                && layer.Kind != LayerKind.Composition && layer.MatteId is null && !masks && !layer.Effects.Any(e => e.Enabled);
+                && layer.Kind is (LayerKind.Solid or LayerKind.Rectangle or LayerKind.Ellipse or LayerKind.Star or LayerKind.Path)
+                && layer.GradientEnd is null && layer.StrokeWidth == 0
+                && layer.MatteId is null && !masks && !layer.Effects.Any(e => e.Enabled);
             if (EnableOptimizations && simple && layer.Kind is LayerKind.Solid or LayerKind.Rectangle or LayerKind.Ellipse or LayerKind.Star or LayerKind.Path)
             {
                 var geometry = _resources.Get(layer).GetGeometry(layer, Metrics);
@@ -233,21 +241,22 @@ public sealed class SkiaCompositor : IDisposable
     }
     private SKImage? GetImage(MediaAsset asset)
     {
-        var existing = FindImage(asset.Id); if (existing is not null) return existing;
-        var image = DecodeImage(asset.Data); PutImage(asset.Id, image); return image;
+        if (_images.TryGetValue(asset.Id, out var cached) && ReferenceEquals(cached.Payload, asset.Data))
+        { cached.Stamp = ++_stamp; return cached.Image; }
+        var image = DecodeImage(asset.Data); PutImage(asset.Id, image, asset.Data); return image;
     }
     private SKImage? FindImage(string key)
     {
         if (!_images.TryGetValue(key, out var item)) return null;
-        _images[key] = item with { Stamp = ++_stamp }; return item.Image;
+        item.Stamp = ++_stamp; return item.Image;
     }
-    private void PutImage(string key, SKImage image)
+    private void PutImage(string key, SKImage image, byte[]? payload = null)
     {
         if (_images.Remove(key, out var old)) { _bytes -= old.Bytes; old.Image.Dispose(); }
         var bytes = (long)image.Width * image.Height * 4;
         while (_images.Count > 0 && _bytes + bytes > ImageCacheLimit)
         { var oldest = _images.MinBy(p => p.Value.Stamp); _images.Remove(oldest.Key); _bytes -= oldest.Value.Bytes; oldest.Value.Image.Dispose(); }
-        _images[key] = new(image, bytes, ++_stamp); _bytes += bytes;
+        _images[key] = new(image, bytes, ++_stamp, payload); _bytes += bytes;
     }
     public void SetVideoFrame(string assetId, byte[] png) => PutImage(assetId + ":video", DecodeImage(png));
     public SKImage DecodeImage(byte[] data)
