@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EffectsSpace.Core/EffectsSpace.Core.csproj" />
+    <Project Path="src/EffectsSpace.Animation/EffectsSpace.Animation.csproj" />
+    <Project Path="src/EffectsSpace.Documents/EffectsSpace.Documents.csproj" />
+    <Project Path="src/EffectsSpace.Editing/EffectsSpace.Editing.csproj" />
+    <Project Path="src/EffectsSpace.Rendering/EffectsSpace.Rendering.csproj" />
+    <Project Path="src/EffectsSpace.Skia/EffectsSpace.Skia.csproj" />
+    <Project Path="src/EffectsSpace.Controls/EffectsSpace.Controls.csproj" />
+    <Project Path="src/EffectsSpace.Viewer/EffectsSpace.Viewer.csproj" />
+    <Project Path="src/EffectsSpace.Timeline/EffectsSpace.Timeline.csproj" />
+    <Project Path="src/EffectsSpace.Workbench/EffectsSpace.Workbench.csproj" />
+    <Project Path="src/EffectsSpace.App/EffectsSpace.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/"><Project Path="tests/EffectsSpace.Tests/EffectsSpace.Tests.csproj" /></Folder>
+</Solution>

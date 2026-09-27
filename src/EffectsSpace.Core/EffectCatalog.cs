@@ -7,17 +7,17 @@ public static class EffectCatalog
 {
     public static IReadOnlyList<EffectDefinition> All { get; } =
     [
-        new(EffectKind.GaussianBlur, "Gaussian Blur", "Blur & Sharpen", new("Radius", "Blurriness", 12, 0, 128)),
-        new(EffectKind.Glow, "Glow", "Stylize", new("Radius", "Glow Radius", 32, 0, 128), new("Strength", "Glow Intensity", 80, 0, 100)),
-        new(EffectKind.DropShadow, "Drop Shadow", "Perspective", new("Radius", "Softness", 18, 0, 128), new("Distance", "Distance", 20, 0, 400), new("Angle", "Direction", 135, -360, 360), new("Opacity", "Opacity", 65, 0, 100)),
-        new(EffectKind.Exposure, "Exposure", "Color Correction", new("Exposure", "Exposure", 0.5, -8, 8, 0.1)),
-        new(EffectKind.BrightnessContrast, "Brightness & Contrast", "Color Correction", new("Brightness", "Brightness", 10, -100, 100), new("Contrast", "Contrast", 10, -100, 100)),
-        new(EffectKind.Saturation, "Hue / Saturation", "Color Correction", new("Hue", "Master Hue", 0, -180, 180), new("Saturation", "Master Saturation", 0, -100, 200)),
-        new(EffectKind.Tint, "Tint", "Color Correction", new("Amount", "Amount to Tint", 100, 0, 100)),
+        new(EffectKind.GaussianBlur, "Gaussian Blur", "Blur & Sharpen", new EffectParameter("Radius", "Blurriness", 12, 0, 128)),
+        new(EffectKind.Glow, "Glow", "Stylize", new EffectParameter("Radius", "Glow Radius", 32, 0, 128), new EffectParameter("Strength", "Glow Intensity", 80, 0, 100)),
+        new(EffectKind.DropShadow, "Drop Shadow", "Perspective", new EffectParameter("Radius", "Softness", 18, 0, 128), new EffectParameter("Distance", "Distance", 20, 0, 400), new EffectParameter("Angle", "Direction", 135, -360, 360), new EffectParameter("Opacity", "Opacity", 65, 0, 100)),
+        new(EffectKind.Exposure, "Exposure", "Color Correction", new EffectParameter("Exposure", "Exposure", 0.5, -8, 8, 0.1)),
+        new(EffectKind.BrightnessContrast, "Brightness & Contrast", "Color Correction", new EffectParameter("Brightness", "Brightness", 10, -100, 100), new EffectParameter("Contrast", "Contrast", 10, -100, 100)),
+        new(EffectKind.Saturation, "Hue / Saturation", "Color Correction", new EffectParameter("Hue", "Master Hue", 0, -180, 180), new EffectParameter("Saturation", "Master Saturation", 0, -100, 200)),
+        new(EffectKind.Tint, "Tint", "Color Correction", new EffectParameter("Amount", "Amount to Tint", 100, 0, 100)),
         new(EffectKind.Invert, "Invert", "Channel"),
-        new(EffectKind.Posterize, "Posterize", "Stylize", new("Levels", "Levels", 6, 2, 32)),
-        new(EffectKind.FractalNoise, "Fractal Noise", "Noise & Grain", new("Scale", "Scale", 160, 8, 1000), new("Complexity", "Complexity", 4, 1, 8), new("Evolution", "Evolution", 0, 0, 3600)),
-        new(EffectKind.Vignette, "Vignette", "Stylize", new("Amount", "Amount", 60, 0, 100))
+        new(EffectKind.Posterize, "Posterize", "Stylize", new EffectParameter("Levels", "Levels", 6, 2, 32)),
+        new(EffectKind.FractalNoise, "Fractal Noise", "Noise & Grain", new EffectParameter("Scale", "Scale", 160, 8, 1000), new EffectParameter("Complexity", "Complexity", 4, 1, 8), new EffectParameter("Evolution", "Evolution", 0, 0, 3600)),
+        new(EffectKind.Vignette, "Vignette", "Stylize", new EffectParameter("Amount", "Amount", 60, 0, 100))
     ];
     public static EffectDefinition Get(EffectKind kind) => All.First(e => e.Kind == kind);
     public static LayerEffect Create(EffectKind kind) => new()
