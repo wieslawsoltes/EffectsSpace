@@ -42,7 +42,6 @@ public partial class App : Application
             _workbench = new StudioWorkbench(session, storage); _workbench.Viewer.Renderer.Typeface = Studio.Typeface;
             _window.Content = _workbench;
             _window.Closed += (_, _) => { _workbench.Dispose(); _typeface?.Dispose(); };
-            _window.Activated += (_, e) => { if (e.WindowActivationState == WindowActivationState.Deactivated) { _workbench.Viewer.SpaceDown = false; _workbench.Pause(); } };
             if (warning is not null) _workbench.ShowStatus(warning, true);
 #if __WASM__
             BrowserDiagnostics.Attach(session, _workbench);
