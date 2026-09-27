@@ -32,6 +32,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private readonly List<RenderQueueItem> _renderItems = [];
     public EditorSession Session { get; }
     public CompositionView Viewer { get; }
+    public MaskEditView MaskEditor { get; }
     public TimelineView Timeline { get; }
     public bool IsPlaying => _playTimer.IsEnabled;
     public bool IsRendering => _renderCancellation is not null;
@@ -40,7 +41,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
 
     public StudioWorkbench(EditorSession session, IWorkspaceStorage storage)
     {
-        Session = session; _storage = storage; Viewer = new(session); Timeline = new(session); IsTabStop = true;
+        Session = session; _storage = storage; Viewer = new(session); MaskEditor = new(Viewer); Timeline = new(session); IsTabStop = true;
         Background = Studio.Brush(Studio.Background); FontFamily = Studio.Font; Foreground = Studio.Brush(Studio.TextColor);
         _play = new StudioButton("Play / Pause", TogglePlayback, IconKind.Play, false);
         _root.RowDefinitions.Add(new() { Height = new GridLength(28) });
@@ -49,14 +50,14 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
         _root.RowDefinitions.Add(new() { Height = new GridLength(5) });
         _root.RowDefinitions.Add(new() { Height = new GridLength(302), MinHeight = 130 });
         _root.RowDefinitions.Add(new() { Height = new GridLength(22) });
-        Place(_root, BuildMenu(), 0); Place(_root, BuildToolbar(), 1); BuildMiddle(); Place(_root, _middle, 2);
+        Place(_root, BuildMenu(), 0); Place(_root, BuildToolbar(), 1); BuildMiddle(); InitializeCompositing(); Place(_root, _middle, 2);
         var horizontal = new StudioSplitter(false); horizontal.Dragged += delta => _root.RowDefinitions[4].Height = new GridLength(Math.Clamp(_root.RowDefinitions[4].ActualHeight - delta.Y, 130, Math.Max(160, ActualHeight - 240))); Place(_root, horizontal, 3);
         _bottomPanel.AddTab("Timeline", BuildTimeline()); _bottomPanel.AddTab("Render Queue", Scroll(_queue)); Place(_root, _bottomPanel, 4);
         var footer = new Grid { Background = Studio.Brush("#202020"), Padding = new Thickness(10, 0, 10, 0) };
         footer.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); footer.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); footer.Children.Add(_status);
         var backend = Studio.Text("Uno · Skia canvas  /  sRGB 8-bit", 10, Studio.Muted); Grid.SetColumn(backend, 1); footer.Children.Add(backend); Place(_root, footer, 5);
         Content = _root;
-        Viewer.Error += message => ShowStatus(message, true); Timeline.Error += message => ShowStatus(message, true);
+        Viewer.Error += message => ShowStatus(message, true); MaskEditor.Error += message => ShowStatus(message, true); Timeline.Error += message => ShowStatus(message, true);
         Viewer.ViewChanged += () => { UpdateTransport(); DiagnosticsChanged?.Invoke(); };
         Timeline.ViewChanged += () => { UpdateAnimationToolbar(); DiagnosticsChanged?.Invoke(); };
         Session.Changed += Changed;
@@ -73,12 +74,12 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private async Task RunAsync(Func<Task> action)
     { try { await action(); } catch (OperationCanceledException) { ShowStatus("Operation cancelled."); } catch (Exception ex) { ShowStatus(ex.Message, true); } }
     public void ShowStatus(string message, bool error = false) { _status.Text = message; _status.Foreground = Studio.Brush(error ? "#E49A90" : Studio.Muted); DiagnosticsChanged?.Invoke(); }
-    private void SelectTool(ViewerTool tool) { Pause(); Viewer.Tool = tool; RefreshToolButtons(); Focus(FocusState.Programmatic); ShowStatus(tool + " tool"); }
+    private void SelectTool(ViewerTool tool) { Pause(); MaskEditor.Stop(); Viewer.Tool = tool; RefreshToolButtons(); Focus(FocusState.Programmatic); ShowStatus(tool + " tool"); }
     private void RefreshToolButtons() { foreach (var (tool, button) in _tools) button.Active = Viewer.Tool == tool; }
     private void Changed(ChangeKind kind)
     {
         UpdateTransport(); UpdateAnimationToolbar(); DiagnosticsChanged?.Invoke();
-        if (kind is ChangeKind.Time or ChangeKind.Preview or ChangeKind.KeySelection) { UpdateValues(); return; }
+        if (kind is ChangeKind.Time or ChangeKind.Preview or ChangeKind.KeySelection) { UpdateValues(); UpdateSourceTime(); return; }
         if (kind == ChangeKind.Document) { _recoveryTimer.Stop(); _recoveryTimer.Start(); }
         if (_refreshQueued) return; _refreshQueued = true;
         DispatcherQueue.TryEnqueue(() => { _refreshQueued = false; if (!_disposed) Refresh(); });
@@ -86,7 +87,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private void Refresh()
     {
         if (_refreshing || _disposed) return; _refreshing = true;
-        try { RefreshProject(); RefreshProperties(); RefreshEffects(); RefreshCatalog(); RefreshQueue(); RefreshToolButtons(); UpdateTransport(); UpdateAnimationToolbar(); }
+        try { RefreshProject(); RefreshProperties(); RefreshEffects(); RefreshCatalog(); RefreshCompositing(); RefreshQueue(); RefreshToolButtons(); UpdateTransport(); UpdateAnimationToolbar(); }
         finally { _refreshing = false; }
     }
     private void UpdateTransport()
@@ -135,6 +136,6 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     }
     public new void Dispose()
     {
-        if (_disposed) return; _disposed = true; _playTimer.Stop(); _recoveryTimer.Stop(); _renderCancellation?.Cancel(); Session.Changed -= Changed; Viewer.Dispose(); Timeline.Dispose(); base.Dispose();
+        if (_disposed) return; _disposed = true; _playTimer.Stop(); _recoveryTimer.Stop(); _renderCancellation?.Cancel(); Session.Changed -= Changed; MaskEditor.Dispose(); Viewer.Dispose(); Timeline.Dispose(); base.Dispose();
     }
 }
