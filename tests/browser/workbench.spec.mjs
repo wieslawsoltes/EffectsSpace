@@ -21,8 +21,7 @@ test('real Uno workbench starts, renders editable artwork, scrubs and plays', as
   await start(page); let s = await state(page);
   expect(s.runtime).toContain('Uno'); expect(s.layers).toBeGreaterThan(8); expect(s.compositions).toBe(2); expect(s.renderError).toBeNull();
   await fs.mkdir('artifacts/screenshots', {recursive:true}); await page.screenshot({path:'artifacts/screenshots/workbench.png'});
-  const ruler = s.timeline;
-  await page.mouse.click(ruler.x + s.headerWidth + 4 * s.pixelsPerSecond, ruler.y + 32);
+  await page.mouse.click(s.timeline.x + s.headerWidth + 4 * s.pixelsPerSecond, s.timeline.y + 32);
   await expect.poll(async () => (await state(page)).time).toBeCloseTo(4, 1);
   await page.keyboard.press('Space'); await expect.poll(async () => (await state(page)).playing).toBeTruthy();
   await page.waitForTimeout(350); await page.keyboard.press('Space'); await expect.poll(async () => (await state(page)).playing).toBeFalsy();
@@ -41,7 +40,7 @@ test('draw, transform, duplicate and undo through real keyboard and pointer inpu
   await page.keyboard.press('Control+z'); await expect.poll(async () => (await state(page)).layers).toBe(before + 1);
   await page.keyboard.press('Control+Shift+z'); await expect.poll(async () => (await state(page)).layers).toBe(before + 2);
   await page.keyboard.press('Delete'); await expect.poll(async () => (await state(page)).layers).toBe(before + 1);
-  await page.keyboard.press('Control+s'); const download = await page.waitForEvent('download');
+  const waiting = page.waitForEvent('download'); await page.keyboard.press('Control+s'); const download = await waiting;
   const path = await download.path(); const document = JSON.parse(await fs.readFile(path, 'utf8'));
   expect(document.schemaVersion).toBe(1); expect(document.compositions[0].layers.length).toBe(before + 1);
 });
@@ -50,8 +49,7 @@ test('timeline property keyframes and persistent recovery', async ({ page }) => 
   await start(page); await selectRow(page, 'ORBITAL');
   await expect.poll(async () => (await state(page)).name).toBe('ORBITAL');
   await page.keyboard.press('p'); let s = await state(page);
-  const row = s.rows.find(r => r.name === 'ORBITAL' && r.property === 'X');
-  expect(row).toBeTruthy();
+  const row = s.rows.find(r => r.name === 'ORBITAL' && r.property === 'X'); expect(row).toBeTruthy();
   await page.mouse.click(s.timeline.x + 92, s.timeline.y + row.y + 11);
   await expect.poll(async () => (await state(page)).keys).toBeGreaterThan(8);
   await page.keyboard.press('Shift+F3'); await expect.poll(async () => (await state(page)).graph).toBeTruthy();
