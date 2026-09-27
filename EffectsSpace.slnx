@@ -12,5 +12,8 @@
     <Project Path="src/EffectsSpace.Workbench/EffectsSpace.Workbench.csproj" />
     <Project Path="src/EffectsSpace.App/EffectsSpace.App.csproj" />
   </Folder>
-  <Folder Name="/tests/"><Project Path="tests/EffectsSpace.Tests/EffectsSpace.Tests.csproj" /></Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EffectsSpace.Tests/EffectsSpace.Tests.csproj" />
+    <Project Path="tests/EffectsSpace.Skia.Tests/EffectsSpace.Skia.Tests.csproj" />
+  </Folder>
 </Solution>

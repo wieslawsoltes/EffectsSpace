@@ -37,25 +37,25 @@ The repository pins the toolchain in `global.json`: **.NET SDK 10.0.401** and **
 
 ```sh
 # Engine and renderer tests
- dotnet run --project tests/EffectsSpace.Tests -c Release
- dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
+dotnet run --project tests/EffectsSpace.Tests -c Release
+dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
 
-# Download open-licensed typography; the license is retained with the font
- python3 scripts/fetch-assets.py
+# Fetch checksum-verified open typography and retain its license
+python3 scripts/fetch-assets.py
 
 # Native desktop host: Windows, macOS or Linux
- dotnet run --project src/EffectsSpace.App -f net10.0-desktop \
-   -p:EffectsSpaceDesktopOnly=true
+dotnet run --project src/EffectsSpace.App -f net10.0-desktop \
+  -p:EffectsSpaceDesktopOnly=true
 
 # Real Uno WebAssembly application
- dotnet workload install wasm-tools
- dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release \
-   -o artifacts/publish -p:WasmShellWebAppBasePath=/EffectsSpace/
- python3 scripts/collect-site.py artifacts/publish artifacts/site
- python3 scripts/serve-site.py --directory artifacts/site --port 4173
+dotnet workload install wasm-tools
+dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release \
+  -o artifacts/publish -p:WasmShellWebAppBasePath=/EffectsSpace/
+python3 scripts/collect-site.py artifacts/publish artifacts/site
+python3 scripts/serve-site.py --directory artifacts/site --port 4173
 ```
 
-Open `http://127.0.0.1:4173/EffectsSpace/`. Use Python 3, Node 22+ and the pinned .NET SDK for the full validation workflow. The renderer test project includes Linux native Skia assets; desktop application builds resolve their platform-specific assets through Uno.
+Open `http://127.0.0.1:4173/EffectsSpace/`. Use Python 3, Node 22+ and the pinned .NET SDK for full validation. The renderer test project includes Linux native Skia assets; desktop application builds resolve their platform-specific assets through Uno.
 
 ```sh
 npm install --ignore-scripts
@@ -78,7 +78,7 @@ npm run test:browser
 | `EffectsSpace.Timeline` | Virtualized timeline painting, clip/keyframe interaction and value graphs |
 | `EffectsSpace.Workbench` | Project bins, inspectors, effect catalog, transport, queue and document workflows |
 
-All ten libraries are packable. The application host is intentionally thin. [Embedding examples](docs/EMBEDDING.md) show engine-only and Uno-control integration.
+All ten libraries are packable. The application host is intentionally thin. [Embedding examples](docs/EMBEDDING.md) show engine-only and Uno-control integration. Build artifacts contain packages; this does not imply publication to nuget.org.
 
 ## Keyboard essentials
 
@@ -100,11 +100,11 @@ Text fields retain ordinary editing behavior. Timeline and viewer interactions h
 
 `SKCanvasElement` uses Uno's existing render canvas and avoids a full-frame CPU upload for every preview. Hardware acceleration depends on Uno's selected host/backend; a software fallback remains possible. PNG export deliberately uses a deterministic CPU surface. **This release does not claim a WebGPU backend or guaranteed GPU acceleration on every machine.**
 
-The application and libraries are **MIT licensed**. Uno Platform and SkiaSharp are MIT licensed; Skia uses a BSD-style license; Inter uses SIL OFL. No GPL media engine or proprietary codec SDK is bundled. See [third-party notices](THIRD-PARTY-NOTICES.md).
+The application and libraries are **MIT licensed**. Uno Platform core is **Apache-2.0**, SkiaSharp is **MIT**, Skia uses a **BSD-style** license and Inter uses **SIL OFL**. No GPL media engine or proprietary codec SDK is bundled. Resolved dependencies retain their own notices; see [third-party notices](THIRD-PARTY-NOTICES.md).
 
 ## Automation and validation
 
-The Build workflow runs engine tests, publishes the real WASM application, runs Playwright interactions and packages the reusable libraries. Desktop builds cover Windows, macOS and Linux. Pages publishes only a successful, current-main Build artifact with matching `build-info.json` provenance, then repeats browser tests against the public URL. Release automation produces source, browser, desktop and NuGet artifacts without requiring a package-publishing secret.
+Build runs engine tests, rendered-pixel tests, real WASM publishing, Playwright interactions and library packaging. Desktop builds cover Windows, macOS and Linux. Pages publishes only a successful, current-main Build artifact with matching `build-info.json` provenance, then repeats browser tests against the public URL. Release automation produces source, browser, desktop and NuGet artifacts. External NuGet publication is a separate explicit workflow requiring a repository-owner credential.
 
 See [validation](docs/VALIDATION.md), [deployment](docs/DEPLOYMENT.md), [security](SECURITY.md) and [contributing](CONTRIBUTING.md). A green compile is not a claim of complete visual parity or hardware-driver certification.
 
