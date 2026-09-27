@@ -20,6 +20,8 @@ jobs:
           global-json-file: global.json
       - name: Run deterministic engine acceptance tests
         run: dotnet run --project tests/EffectsSpace.Tests -c Release
+      - name: Run animation editing and derivative tests
+        run: dotnet run --project tests/EffectsSpace.Animation.Tests -c Release
       - name: Run renderer pixel and export tests
         run: dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
       - name: Snapshot sources

@@ -46,8 +46,8 @@ public static class EditorCommands
                 if (copy.MatteId is { } m && map.TryGetValue(m, out var cm)) copy.MatteId = cm;
                 session.Composition.Layers.Insert(session.Composition.Layers.IndexOf(originals[i]), copy);
             }
+            session.Select(null); foreach (var copy in copies) session.SelectedIds.Add(copy.Id);
         });
-        session.Select(null); foreach (var c in copies) session.SelectedIds.Add(c.Id); session.PreviewChanged();
     }
     public static Layer CloneForInsert(Layer source)
     {
@@ -60,7 +60,12 @@ public static class EditorCommands
     public static void SetProperty(this EditorSession session, string property, double value)
     {
         if (!double.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value));
-        session.Edit("Set " + property, () => { foreach (var layer in session.Selection.Where(l => !l.Locked)) SetChannel(layer.Transform.Get(property), session.Time, value, session.AutoKey); });
+        session.Edit("Set " + property, () =>
+        {
+            foreach (var layer in session.Selection.Where(l => !l.Locked))
+                if (LayerChannels.Find(layer, property) is { } descriptor)
+                    SetChannel(descriptor.Channel, session.Time, Math.Clamp(value, descriptor.Minimum, descriptor.Maximum), session.AutoKey);
+        });
     }
     public static void SetChannel(Channel channel, double time, double value, bool autoKey)
     { if (autoKey || channel.Keys.Count > 0) channel.SetKey(time, value); else channel.Value = value; }
@@ -70,31 +75,29 @@ public static class EditorCommands
         {
             foreach (var layer in session.Selection.Where(l => !l.Locked))
             {
-                var channel = layer.Transform.Get(property); var value = CurveEvaluator.Evaluate(channel, session.Time);
+                if (LayerChannels.Find(layer, property) is not { } descriptor) continue;
+                var channel = descriptor.Channel; var value = CurveEvaluator.Evaluate(channel, session.Time, session.Composition.Layers.IndexOf(layer) + 1);
                 if (channel.Keys.Count == 0) channel.SetKey(session.Time, value); else { channel.Value = value; channel.Keys.Clear(); }
             }
         });
     }
     public static void AddKey(this EditorSession session, string property)
     {
-        session.Edit("Add " + property + " keyframe", () =>
+        session.Edit("Add keyframe", () =>
         {
-            foreach (var layer in session.Selection.Where(l => !l.Locked)) { var c = layer.Transform.Get(property); c.SetKey(session.Time, CurveEvaluator.Evaluate(c, session.Time)); }
-        });
-    }
-    public static void SetInterpolation(this EditorSession session, Interpolation interpolation)
-    {
-        session.Edit("Set keyframe interpolation", () =>
-        {
+            var keys = new List<string>();
             foreach (var layer in session.Selection.Where(l => !l.Locked))
-            foreach (var key in layer.Transform.Get(session.Property).Keys.Where(k => session.SelectedKeyId is null || k.Id == session.SelectedKeyId)) key.Interpolation = interpolation;
+            {
+                if (LayerChannels.Find(layer, property) is not { } descriptor) continue;
+                var channel = descriptor.Channel;
+                channel.SetKey(session.Time, CurveEvaluator.Evaluate(channel, session.Time, session.Composition.Layers.IndexOf(layer) + 1));
+                keys.Add(channel.Keys.First(k => Math.Abs(k.Time - session.Time) < 1e-8).Id);
+            }
+            session.SelectKeys(keys);
         });
     }
-    public static void DeleteSelectedKey(this EditorSession session)
-    {
-        if (session.SelectedKeyId is null) return;
-        session.Edit("Delete keyframe", () => { foreach (var l in session.Selection.Where(l => !l.Locked)) l.Transform.Get(session.Property).Keys.RemoveAll(k => k.Id == session.SelectedKeyId); }); session.SelectedKeyId = null;
-    }
+    public static void SetInterpolation(this EditorSession session, Interpolation interpolation) => session.InterpolateKeys(interpolation);
+    public static void DeleteSelectedKey(this EditorSession session) => session.DeleteKeys();
     public static void SplitSelection(this EditorSession session)
     {
         var layers = session.Selection.Where(l => !l.Locked && session.Time > l.InPoint && session.Time < l.OutPoint).ToArray();

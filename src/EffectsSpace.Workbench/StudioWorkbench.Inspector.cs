@@ -1,4 +1,3 @@
-using System.Globalization;
 using EffectsSpace.Animation;
 using EffectsSpace.Controls;
 using EffectsSpace.Core;
@@ -12,6 +11,7 @@ namespace EffectsSpace.Workbench;
 
 public sealed partial class StudioWorkbench
 {
+    private readonly Dictionary<string, NumericField> _effectFields = [];
     private static TextBlock Heading(string text) => new() { Text = text, FontFamily = Studio.Font, FontSize = 11, Foreground = Studio.Brush("#DDDDDD"), Margin = new Thickness(0, 7, 0, 3) };
     private static Grid FieldRow(string label, UIElement field, double labelWidth = 92)
     {
@@ -29,9 +29,11 @@ public sealed partial class StudioWorkbench
     private NumericField Number(string label, double value, Action<double> set, double minimum = -100000, double maximum = 100000, double step = 1)
     {
         var field = new NumericField(label, value) { Minimum = minimum, Maximum = maximum, Step = step, IsEnabled = Session.Primary?.Locked != true };
-        field.EditStarted += () => Run(() => { Pause(); if (!Session.IsEditing) Session.BeginEdit("Set " + label); });
-        field.ValueChanging += next => Run(() => { set(next); Session.PreviewChanged(); });
-        field.EditCompleted += () => Run(Session.CommitEdit); field.EditCancelled += Session.CancelEdit; return field;
+        var ownsEdit = false;
+        field.EditStarted += () => Run(() => { Pause(); if (Session.IsEditing) throw new InvalidOperationException("Finish the current edit first."); Session.BeginEdit("Set " + label); ownsEdit = true; });
+        field.ValueChanging += next => { if (ownsEdit) Run(() => { set(next); Session.PreviewChanged(); }); };
+        field.EditCompleted += () => { if (!ownsEdit) return; ownsEdit = false; Run(Session.CommitEdit); };
+        field.EditCancelled += () => { if (!ownsEdit) return; ownsEdit = false; Session.CancelEdit(); }; return field;
     }
     private StudioChoice Choice(string name, IEnumerable<(string Label, string Value)> values, string current, Action<string> change)
     {
@@ -63,21 +65,23 @@ public sealed partial class StudioWorkbench
             _properties.Children.Add(Studio.Text(Session.Composition.Name, 12)); _properties.Children.Add(Studio.Text($"{Session.Composition.Width} × {Session.Composition.Height}  ·  {Session.Composition.FrameRate}", 10, Studio.Muted));
             _properties.Children.Add(Studio.Text($"Duration  {Session.Composition.Duration:0.###} seconds", 10, Studio.Muted));
             _properties.Children.Add(Button("Composition Settings", () => _ = RunAsync(CompositionSettingsAsync), IconKind.Settings));
-            _properties.Children.Add(Studio.Separator(false));
-            _properties.Children.Add(Heading("CREATE A LAYER"));
+            _properties.Children.Add(Studio.Separator(false)); _properties.Children.Add(Heading("CREATE A LAYER"));
             foreach (var kind in new[] { LayerKind.Rectangle, LayerKind.Ellipse, LayerKind.Text, LayerKind.Solid, LayerKind.Null }) _properties.Children.Add(Button("New " + kind, () => Session.AddLayer(kind), kind == LayerKind.Text ? IconKind.Text : IconKind.Add));
-            _properties.Children.Add(Heading("START ANIMATING")); _properties.Children.Add(new TextBlock { Text = "Select a layer in the viewer or timeline. Enable a stopwatch, move the playhead, then change a value to create keyframes.", FontFamily = Studio.Font, FontSize = 11, Foreground = Studio.Brush(Studio.Muted), TextWrapping = TextWrapping.Wrap }); return;
+            _properties.Children.Add(Heading("START ANIMATING")); _properties.Children.Add(new TextBlock { Text = "Select a layer. Enable a stopwatch, move the playhead, then change a value to create keyframes. Shift-click diamonds or drag a marquee to select multiple keys.", FontFamily = Studio.Font, FontSize = 11, Foreground = Studio.Brush(Studio.Muted), TextWrapping = TextWrapping.Wrap }); return;
         }
         _properties.Children.Add(TextField(layer.Name, "Layer name", value => Session.Edit("Rename layer", () => layer.Name = value)));
         _properties.Children.Add(Heading("▾  Transform"));
         foreach (var (name, channel) in layer.Transform.Channels())
         {
-            var minimum = name == "Opacity" ? 0 : -100000; var maximum = name == "Opacity" ? 100 : 100000;
-            var field = Number("Transform " + name, CurveEvaluator.Evaluate(channel, Session.Time), value => { foreach (var l in Session.Selection.Where(l => !l.Locked)) EditorCommands.SetChannel(l.Transform.Get(name), Session.Time, value, Session.AutoKey); }, minimum, maximum, name is "Rotation" or "Opacity" ? .5 : 1);
+            var field = Number("Transform " + name, CurveEvaluator.Evaluate(channel, Session.Time, Session.Composition.Layers.IndexOf(layer) + 1),
+                value => { foreach (var selected in Session.Selection.Where(l => !l.Locked)) EditorCommands.SetChannel(selected.Transform.Get(name), Session.Time, value, Session.AutoKey); },
+                name == "Opacity" ? 0 : -100000, name == "Opacity" ? 100 : 100000, name is "Rotation" or "Opacity" ? .5 : 1);
             _transformFields[name] = field;
             var row = new Grid { MinHeight = 25 }; row.ColumnDefinitions.Add(new() { Width = new GridLength(24) }); row.ColumnDefinitions.Add(new() { Width = new GridLength(91) }); row.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
-            var stopwatch = Button("Animate " + name, () => { Session.Property = name; Session.ToggleAnimation(name); }, IconKind.Stopwatch, false); stopwatch.Width = 23; stopwatch.Height = 23; stopwatch.Padding = new Thickness(3); stopwatch.Active = channel.Keys.Count > 0; row.Children.Add(stopwatch);
-            var property = Button(TimelineView.PropertyName(name), () => { Session.Property = name; Timeline.ShowProperties("All"); Timeline.Invalidate(); }, null); property.Padding = new Thickness(1); property.Height = 23; Grid.SetColumn(property, 1); row.Children.Add(property); Grid.SetColumn(field, 2); row.Children.Add(field); _properties.Children.Add(row);
+            var stopwatch = Button("Animate " + name, () => { Session.Property = name; Session.ToggleAnimation(name); Timeline.RevealProperty(name); }, IconKind.Stopwatch, false);
+            stopwatch.Width = 23; stopwatch.Height = 23; stopwatch.Padding = new Thickness(3); stopwatch.Active = channel.Keys.Count > 0; row.Children.Add(stopwatch);
+            var property = Button(TimelineView.PropertyName(name), () => Timeline.RevealProperty(name)); property.Padding = new Thickness(1); property.Height = 23;
+            Grid.SetColumn(property, 1); row.Children.Add(property); Grid.SetColumn(field, 2); row.Children.Add(field); _properties.Children.Add(row);
         }
         _properties.Children.Add(FieldRow("Blend Mode", Choice("Blend mode", Enum.GetValues<LayerBlend>().Select(v => (v.ToString(), v.ToString())), layer.Blend.ToString(), value => layer.Blend = Enum.Parse<LayerBlend>(value))));
         var parents = new[] { ("None", "") }.Concat(Session.Composition.Layers.Where(l => l.Id != layer.Id).Select(l => (l.Name, l.Id)));
@@ -94,7 +98,11 @@ public sealed partial class StudioWorkbench
             _properties.Children.Add(FieldRow("Width", Number("Layer width", layer.Width, value => layer.Width = value, 1, 32768)));
             _properties.Children.Add(FieldRow("Height", Number("Layer height", layer.Height, value => layer.Height = value, 1, 32768)));
             if (layer.Kind == LayerKind.Rectangle) _properties.Children.Add(FieldRow("Roundness", Number("Roundness", layer.CornerRadius, value => layer.CornerRadius = value, 0, 4096)));
-            if (layer.Kind == LayerKind.Star) { _properties.Children.Add(FieldRow("Points", Number("Star points", layer.StarPoints, value => layer.StarPoints = (int)value, 3, 128))); _properties.Children.Add(FieldRow("Inner Radius", Number("Inner radius", layer.InnerRadius, value => layer.InnerRadius = value, .01, 1, .01))); }
+            if (layer.Kind == LayerKind.Star)
+            {
+                _properties.Children.Add(FieldRow("Points", Number("Star points", layer.StarPoints, value => layer.StarPoints = (int)value, 3, 128)));
+                _properties.Children.Add(FieldRow("Inner Radius", Number("Inner radius", layer.InnerRadius, value => layer.InnerRadius = value, .01, 1, .01)));
+            }
             _properties.Children.Add(Button(layer.FillEnabled ? "Disable Fill" : "Enable Fill", () => Session.Edit("Toggle fill", () => layer.FillEnabled = !layer.FillEnabled)));
         }
         if (layer.Kind == LayerKind.Text)
@@ -104,12 +112,16 @@ public sealed partial class StudioWorkbench
             _properties.Children.Add(TextField(layer.Text, "Text content", value => Session.Edit("Edit text", () => layer.Text = value), true));
         }
         _properties.Children.Add(Heading("▾  Animation"));
-        _properties.Children.Add(Studio.Row(Button("Add key", () => Session.AddKey(Session.Property), IconKind.Keyframe), Button("Ease", () => Session.SetInterpolation(Interpolation.Bezier)), Button("Hold", () => Session.SetInterpolation(Interpolation.Hold))));
-        _properties.Children.Add(FieldRow("Property", Choice("Expression property", layer.Transform.Channels().Select(p => (TimelineView.PropertyName(p.Name), p.Name)), Session.Property, value => { Session.Property = value; })));
-        var expression = TextField(layer.Transform.Get(Session.Property).Expression, "Scalar expression", value =>
+        _properties.Children.Add(Studio.Row(Button("Add key", () => Session.AddKey(Session.Property), IconKind.Keyframe), Button("Ease", () => Session.EaseKeys(EaseDirection.Both)), Button("Hold", () => Session.InterpolateKeys(Interpolation.Hold))));
+        var descriptor = LayerChannels.Find(layer, Session.Property) ?? LayerChannels.Find(layer, "X")!;
+        var selector = new StudioChoice("Expression property", LayerChannels.Enumerate(layer).Select(p => (p.Name, p.Path)), descriptor.Path);
+        selector.ValueChanged += path => Run(() => { Session.Property = path; Timeline.RevealProperty(path); RefreshProperties(); });
+        _properties.Children.Add(FieldRow("Property", selector));
+        var expression = TextField(descriptor.Channel.Expression, "Scalar expression", value =>
         {
-            if (value.Length > 0 && value.Trim() != "loopOut()" && !ScalarExpression.TryEvaluate(value, Session.Time, 0, 1, out _, out var error)) throw new InvalidOperationException(error);
-            Session.Edit("Set expression", () => layer.Transform.Get(Session.Property).Expression = value);
+            if (value.Length > 0 && value.Trim() != "loopOut()" && !ScalarExpression.TryEvaluate(value, Session.Time, descriptor.Channel.Value, Session.Composition.Layers.IndexOf(layer) + 1, out _, out var error))
+                throw new InvalidOperationException(error);
+            Session.Edit("Set expression", () => descriptor.Channel.Expression = value);
         }); expression.PlaceholderText = "value + sin(time * 2) * 30"; _properties.Children.Add(expression);
         _properties.Children.Add(Studio.Text("Scalar grammar · not JavaScript", 9, Studio.Muted));
         _properties.Children.Add(Studio.Row(Button("Fade", () => AnimatePreset("fade")), Button("Slide", () => AnimatePreset("position")), Button("Spin", () => AnimatePreset("spin"))));
@@ -117,11 +129,13 @@ public sealed partial class StudioWorkbench
     private void UpdateValues()
     {
         var layer = Session.Primary; if (layer is null) return;
-        foreach (var (name, field) in _transformFields) field.Value = CurveEvaluator.Evaluate(layer.Transform.Get(name), Session.Time, Session.Composition.Layers.IndexOf(layer) + 1);
+        foreach (var (path, field) in _transformFields.Concat(_effectFields))
+            if (LayerChannels.Find(layer, path) is { } property)
+                field.Value = CurveEvaluator.Evaluate(property.Channel, Session.Time, Session.Composition.Layers.IndexOf(layer) + 1);
     }
     private void RefreshEffects()
     {
-        _effects.Children.Clear(); var layer = Session.Primary;
+        _effects.Children.Clear(); _effectFields.Clear(); var layer = Session.Primary;
         _effects.Children.Add(Heading(layer?.Name ?? "No layer selected"));
         if (layer is null) { _effects.Children.Add(Studio.Text("Select a layer to edit its effects.", 10, Studio.Muted)); return; }
         _effects.Children.Add(Studio.Row(Button("Add Effect", () => _rightPanel.Select("Effects & Presets"), IconKind.Add), Button("Add Mask", () => Session.AddMask(), IconKind.Rectangle)));
@@ -133,12 +147,20 @@ public sealed partial class StudioWorkbench
             foreach (var parameter in definition.Parameters)
             {
                 if (!effect.Parameters.TryGetValue(parameter.Key, out var channel)) continue;
+                var path = LayerChannels.EffectPath(effect.Id, parameter.Key);
                 var field = Number(definition.Name + " " + parameter.Name, CurveEvaluator.Evaluate(channel, Session.Time), value => EditorCommands.SetChannel(channel, Session.Time, value, Session.AutoKey), parameter.Minimum, parameter.Maximum, parameter.Step);
-                group.Children.Add(FieldRow(parameter.Name, field, 115));
+                _effectFields[path] = field;
+                var row = new Grid { MinHeight = 25 };
+                row.ColumnDefinitions.Add(new() { Width = new GridLength(23) }); row.ColumnDefinitions.Add(new() { Width = new GridLength(102) }); row.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
+                var stopwatch = Button("Animate " + definition.Name + " " + parameter.Name, () => { Session.Property = path; Session.ToggleAnimation(path); Timeline.RevealProperty(path); }, IconKind.Stopwatch, false);
+                stopwatch.Width = 23; stopwatch.Padding = new Thickness(3); stopwatch.Active = channel.Keys.Count > 0;
+                var label = Button(parameter.Name, () => { Timeline.RevealProperty(path); Timeline.GraphMode = true; }); label.Padding = new Thickness(1);
+                Place(row, stopwatch); Place(row, label, 0, 1); Place(row, field, 0, 2); group.Children.Add(row);
             }
             if (effect.Kind is EffectKind.Glow or EffectKind.DropShadow or EffectKind.Tint) group.Children.Add(FieldRow("Color", TextField(effect.Color, "Effect color", value => Session.Edit("Effect color", () => effect.Color = value))));
-            var index = layer.Effects.IndexOf(effect);
-            group.Children.Add(Studio.Row(Button("Move effect up", () => Session.Edit("Reorder effects", () => { var i = layer.Effects.IndexOf(effect); if (i > 0) { layer.Effects.RemoveAt(i); layer.Effects.Insert(i - 1, effect); } }), IconKind.Previous, false), Button("Move effect down", () => Session.Edit("Reorder effects", () => { var i = layer.Effects.IndexOf(effect); if (i < layer.Effects.Count - 1) { layer.Effects.RemoveAt(i); layer.Effects.Insert(i + 1, effect); } }), IconKind.Next, false), Studio.Text($"Effect {index + 1}", 9, Studio.Muted)));
+            group.Children.Add(Studio.Row(Button("Move effect up", () => Session.Edit("Reorder effects", () => { var index = layer.Effects.IndexOf(effect); if (index > 0) { layer.Effects.RemoveAt(index); layer.Effects.Insert(index - 1, effect); } }), IconKind.Previous, false),
+                Button("Move effect down", () => Session.Edit("Reorder effects", () => { var index = layer.Effects.IndexOf(effect); if (index < layer.Effects.Count - 1) { layer.Effects.RemoveAt(index); layer.Effects.Insert(index + 1, effect); } }), IconKind.Next, false),
+                Studio.Text($"Effect {layer.Effects.IndexOf(effect) + 1}", 9, Studio.Muted)));
             _effects.Children.Add(group); _effects.Children.Add(Studio.Separator(false));
         }
         if (layer.Effects.Count == 0) _effects.Children.Add(Studio.Text("No effects applied.", 10, Studio.Muted));
@@ -154,8 +176,7 @@ public sealed partial class StudioWorkbench
     }
     private void RefreshCatalog()
     {
-        _catalog.Children.Clear();
-        _catalog.Children.Add(Studio.Text("Apply to the selected layer", 10, Studio.Muted));
+        _catalog.Children.Clear(); _catalog.Children.Add(Studio.Text("Apply to the selected layer", 10, Studio.Muted));
         foreach (var group in EffectCatalog.All.Where(e => (e.Name + " " + e.Category).Contains(_effectFilter, StringComparison.OrdinalIgnoreCase)).GroupBy(e => e.Category))
         {
             _catalog.Children.Add(Heading("▾  " + group.Key));

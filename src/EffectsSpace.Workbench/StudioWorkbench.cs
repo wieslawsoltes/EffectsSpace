@@ -52,10 +52,13 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
         Place(_root, BuildMenu(), 0); Place(_root, BuildToolbar(), 1); BuildMiddle(); Place(_root, _middle, 2);
         var horizontal = new StudioSplitter(false); horizontal.Dragged += delta => _root.RowDefinitions[4].Height = new GridLength(Math.Clamp(_root.RowDefinitions[4].ActualHeight - delta.Y, 130, Math.Max(160, ActualHeight - 240))); Place(_root, horizontal, 3);
         _bottomPanel.AddTab("Timeline", BuildTimeline()); _bottomPanel.AddTab("Render Queue", Scroll(_queue)); Place(_root, _bottomPanel, 4);
-        var footer = new Grid { Background = Studio.Brush("#202020"), Padding = new Thickness(10, 0, 10, 0) }; footer.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); footer.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); footer.Children.Add(_status); var backend = Studio.Text("Uno · Skia canvas  /  sRGB 8-bit", 10, Studio.Muted); Grid.SetColumn(backend, 1); footer.Children.Add(backend); Place(_root, footer, 5);
+        var footer = new Grid { Background = Studio.Brush("#202020"), Padding = new Thickness(10, 0, 10, 0) };
+        footer.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); footer.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); footer.Children.Add(_status);
+        var backend = Studio.Text("Uno · Skia canvas  /  sRGB 8-bit", 10, Studio.Muted); Grid.SetColumn(backend, 1); footer.Children.Add(backend); Place(_root, footer, 5);
         Content = _root;
         Viewer.Error += message => ShowStatus(message, true); Timeline.Error += message => ShowStatus(message, true);
-        Viewer.ViewChanged += () => { UpdateTransport(); DiagnosticsChanged?.Invoke(); }; Timeline.ViewChanged += () => DiagnosticsChanged?.Invoke();
+        Viewer.ViewChanged += () => { UpdateTransport(); DiagnosticsChanged?.Invoke(); };
+        Timeline.ViewChanged += () => { UpdateAnimationToolbar(); DiagnosticsChanged?.Invoke(); };
         Session.Changed += Changed;
         _playTimer.Tick += (_, _) => Tick();
         _recoveryTimer.Tick += async (_, _) => { _recoveryTimer.Stop(); await SaveRecoveryAsync(); };
@@ -66,7 +69,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private static ScrollViewer Scroll(UIElement child) => new() { Content = child, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Padding = new Thickness(8, 7, 8, 7) };
     private static void Place(Grid grid, UIElement child, int row = 0, int column = 0) { Grid.SetRow(child, row); Grid.SetColumn(child, column); grid.Children.Add(child); }
     private StudioButton Button(string name, Action action, IconKind? icon = null, bool text = true) => new(name, () => Run(action), icon, text);
-    private void Run(Action action) { try { action(); } catch (Exception ex) { Session.CancelEdit(); ShowStatus(ex.Message, true); } }
+    private void Run(Action action) { try { action(); } catch (Exception ex) { Timeline.CancelInteraction(); Session.CancelEdit(); ShowStatus(ex.Message, true); } }
     private async Task RunAsync(Func<Task> action)
     { try { await action(); } catch (OperationCanceledException) { ShowStatus("Operation cancelled."); } catch (Exception ex) { ShowStatus(ex.Message, true); } }
     public void ShowStatus(string message, bool error = false) { _status.Text = message; _status.Foreground = Studio.Brush(error ? "#E49A90" : Studio.Muted); DiagnosticsChanged?.Invoke(); }
@@ -74,8 +77,8 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private void RefreshToolButtons() { foreach (var (tool, button) in _tools) button.Active = Viewer.Tool == tool; }
     private void Changed(ChangeKind kind)
     {
-        UpdateTransport(); DiagnosticsChanged?.Invoke();
-        if (kind is ChangeKind.Time or ChangeKind.Preview) { UpdateValues(); return; }
+        UpdateTransport(); UpdateAnimationToolbar(); DiagnosticsChanged?.Invoke();
+        if (kind is ChangeKind.Time or ChangeKind.Preview or ChangeKind.KeySelection) { UpdateValues(); return; }
         if (kind == ChangeKind.Document) { _recoveryTimer.Stop(); _recoveryTimer.Start(); }
         if (_refreshQueued) return; _refreshQueued = true;
         DispatcherQueue.TryEnqueue(() => { _refreshQueued = false; if (!_disposed) Refresh(); });
@@ -83,7 +86,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private void Refresh()
     {
         if (_refreshing || _disposed) return; _refreshing = true;
-        try { RefreshProject(); RefreshProperties(); RefreshEffects(); RefreshCatalog(); RefreshQueue(); RefreshToolButtons(); UpdateTransport(); }
+        try { RefreshProject(); RefreshProperties(); RefreshEffects(); RefreshCatalog(); RefreshQueue(); RefreshToolButtons(); UpdateTransport(); UpdateAnimationToolbar(); }
         finally { _refreshing = false; }
     }
     private void UpdateTransport()
@@ -107,8 +110,12 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
         Session.SetTime(c.WorkStart + ((_playStart - c.WorkStart + _playWatch.Elapsed.TotalSeconds) % span));
     }
     private void Step(int direction) { Pause(); Session.SetTime(Session.Time + Session.Composition.FrameRate.Seconds(direction)); }
-    private void Delete() { if (Session.SelectedKeyId is not null) Session.DeleteSelectedKey(); else Session.DeleteSelection(); }
-    private void ApplyEffect(EffectKind kind) { if (Session.Primary is null) throw new InvalidOperationException("Select a layer before adding an effect."); Session.AddEffect(kind); _projectPanel.Select("Effect Controls"); ShowStatus("Added " + EffectCatalog.Get(kind).Name); }
+    private void Delete() { if (Session.SelectedKeyIds.Count > 0) Session.DeleteKeys(); else Session.DeleteSelection(); }
+    private void ApplyEffect(EffectKind kind)
+    {
+        if (Session.Primary is null) throw new InvalidOperationException("Select a layer before adding an effect.");
+        Session.AddEffect(kind); _projectPanel.Select("Effect Controls"); ShowStatus("Added " + EffectCatalog.Get(kind).Name);
+    }
     private void AnimatePreset(string preset)
     {
         Session.Edit("Apply " + preset + " animation", () =>
