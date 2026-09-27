@@ -9,7 +9,7 @@ public static class EditorCommands
     public static Layer NewLayer(Composition comp, LayerKind kind)
     {
         var layer = new Layer { Name = $"{kind} {comp.Layers.Count(l => l.Kind == kind) + 1}", Kind = kind, OutPoint = comp.Duration };
-        if (kind == LayerKind.Solid) { layer.Width = comp.Width; layer.Height = comp.Height; layer.Fill = "#283244"; }
+        if (kind is LayerKind.Solid or LayerKind.Adjustment) { layer.Width = comp.Width; layer.Height = comp.Height; layer.Fill = "#283244"; }
         if (kind == LayerKind.Text) { layer.Width = 720; layer.Height = 140; layer.Fill = "#FFFFFF"; layer.Label = "#D78383"; }
         if (kind == LayerKind.Ellipse) layer.Height = layer.Width;
         if (kind == LayerKind.Null) { layer.Width = 100; layer.Height = 100; layer.Label = "#DC6B67"; }
@@ -54,6 +54,7 @@ public static class EditorCommands
         var copy = ProjectJson.CloneLayer(source); copy.Id = Guid.NewGuid().ToString("N"); copy.Name += " copy";
         foreach (var (_, channel) in copy.Transform.Channels()) foreach (var key in channel.Keys) key.Id = Guid.NewGuid().ToString("N");
         foreach (var effect in copy.Effects) { effect.Id = Guid.NewGuid().ToString("N"); foreach (var c in effect.Parameters.Values) foreach (var k in c.Keys) k.Id = Guid.NewGuid().ToString("N"); }
+        foreach (var key in copy.TimeRemap.Keys) key.Id = Guid.NewGuid().ToString("N");
         foreach (var mask in copy.Masks) mask.Id = Guid.NewGuid().ToString("N");
         return copy;
     }
