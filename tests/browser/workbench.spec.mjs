@@ -18,7 +18,7 @@ async function selectRow(page, name) {
 }
 
 test('real Uno workbench starts, renders editable artwork, scrubs and plays', async ({ page }) => {
-  await start(page); let s = await state(page);
+  await start(page); const s = await state(page);
   expect(s.runtime).toContain('Uno'); expect(s.layers).toBeGreaterThan(8); expect(s.compositions).toBe(2); expect(s.renderError).toBeNull();
   await fs.mkdir('artifacts/screenshots', {recursive:true}); await page.screenshot({path:'artifacts/screenshots/workbench.png'});
   await page.mouse.click(s.timeline.x + s.headerWidth + 4 * s.pixelsPerSecond, s.timeline.y + 32);
@@ -28,7 +28,7 @@ test('real Uno workbench starts, renders editable artwork, scrubs and plays', as
   expect((await state(page)).time).not.toBe(4);
 });
 
-test('draw, transform, duplicate and undo through real keyboard and pointer input', async ({ page }) => {
+test('draw, duplicate, undo/redo, delete and download through real input', async ({ page }) => {
   await start(page); const before = (await state(page)).layers;
   await focusViewer(page); await page.keyboard.press('q');
   await expect.poll(async () => (await state(page)).tool).toBe('Rectangle');
@@ -39,6 +39,7 @@ test('draw, transform, duplicate and undo through real keyboard and pointer inpu
   await page.keyboard.press('Control+d'); await expect.poll(async () => (await state(page)).layers).toBe(before + 2);
   await page.keyboard.press('Control+z'); await expect.poll(async () => (await state(page)).layers).toBe(before + 1);
   await page.keyboard.press('Control+Shift+z'); await expect.poll(async () => (await state(page)).layers).toBe(before + 2);
+  await expect.poll(async () => (await state(page)).selection).toBe(1);
   await page.keyboard.press('Delete'); await expect.poll(async () => (await state(page)).layers).toBe(before + 1);
   const waiting = page.waitForEvent('download'); await page.keyboard.press('Control+s'); const download = await waiting;
   const path = await download.path(); const document = JSON.parse(await fs.readFile(path, 'utf8'));
@@ -48,13 +49,17 @@ test('draw, transform, duplicate and undo through real keyboard and pointer inpu
 test('timeline property keyframes and persistent recovery', async ({ page }) => {
   await start(page); await selectRow(page, 'ORBITAL');
   await expect.poll(async () => (await state(page)).name).toBe('ORBITAL');
-  await page.keyboard.press('p'); let s = await state(page);
-  const row = s.rows.find(r => r.name === 'ORBITAL' && r.property === 'X'); expect(row).toBeTruthy();
+  const beforeKeys = (await state(page)).keys;
+  await page.keyboard.press('p');
+  await expect.poll(async () => (await state(page)).rows.some(r => r.name === 'ORBITAL' && r.property === 'X')).toBeTruthy();
+  const s = await state(page), row = s.rows.find(r => r.name === 'ORBITAL' && r.property === 'X');
   await page.mouse.click(s.timeline.x + 92, s.timeline.y + row.y + 11);
-  await expect.poll(async () => (await state(page)).keys).toBeGreaterThan(8);
+  await expect.poll(async () => (await state(page)).keys).toBe(beforeKeys + 1);
   await page.keyboard.press('Shift+F3'); await expect.poll(async () => (await state(page)).graph).toBeTruthy();
   await page.screenshot({path:'artifacts/screenshots/graph-editor.png'});
   await page.waitForTimeout(2200); const layers = (await state(page)).layers;
   await page.reload({waitUntil:'domcontentloaded'}); await page.waitForFunction(() => globalThis.effectsSpaceDiagnostics?.ready, null, {timeout:150000});
   expect((await state(page)).layers).toBe(layers); expect((await state(page)).project).toContain('ORBITAL');
+  await selectRow(page, 'ORBITAL');
+  await expect.poll(async () => (await state(page)).keys).toBe(beforeKeys + 1);
 });

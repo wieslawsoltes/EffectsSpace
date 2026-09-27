@@ -7,9 +7,11 @@ public enum ChangeKind { Document, Selection, Time, Preview }
 
 public sealed class EditorSession
 {
-    private sealed record HistoryEntry(string Name, ProjectSnapshot Before, ProjectSnapshot After);
+    private sealed record HistoryEntry(string Name, ProjectSnapshot Before, ProjectSnapshot After, string[] BeforeSelection, string[] AfterSelection, string? BeforeKey, string? AfterKey);
     private readonly List<HistoryEntry> _undo = [], _redo = [];
     private ProjectSnapshot? _before;
+    private string[] _beforeSelection = [];
+    private string? _beforeKey;
     private string _transactionName = "";
     private long _revision;
     public MotionProject Project { get; private set; }
@@ -49,12 +51,12 @@ public sealed class EditorSession
     {
         if (IsEditing) CancelEdit();
         if (!Project.Compositions.Any(c => c.Id == compositionId)) throw new ArgumentException("Unknown composition.");
-        Project.ActiveCompositionId = compositionId; SelectedIds.Clear(); Time = Math.Min(Time, Composition.LastFrameTime); Changed?.Invoke(ChangeKind.Document);
+        Project.ActiveCompositionId = compositionId; SelectedIds.Clear(); SelectedKeyId = null; Time = Math.Min(Time, Composition.LastFrameTime); Changed?.Invoke(ChangeKind.Document);
     }
     public void BeginEdit(string name)
     {
         if (_before is not null) throw new InvalidOperationException("An edit transaction is already active.");
-        _before = ProjectSnapshot.Capture(Project); _transactionName = name;
+        _before = ProjectSnapshot.Capture(Project); _beforeSelection = SelectedIds.ToArray(); _beforeKey = SelectedKeyId; _transactionName = name;
     }
     public void PreviewChanged() => Changed?.Invoke(ChangeKind.Preview);
     public void CommitEdit()
@@ -66,11 +68,11 @@ public sealed class EditorSession
             var after = ProjectSnapshot.Capture(Project);
             if (after.Json != _before.Json || !after.Assets.Keys.Order().SequenceEqual(_before.Assets.Keys.Order()))
             {
-                _undo.Add(new(_transactionName, _before, after)); _redo.Clear();
+                _undo.Add(new(_transactionName, _before, after, _beforeSelection, SelectedIds.ToArray(), _beforeKey, SelectedKeyId)); _redo.Clear();
                 while (_undo.Count > 100 || _undo.Sum(e => (long)e.Before.Json.Length + e.After.Json.Length) > 32 * 1024 * 1024) _undo.RemoveAt(0);
                 _revision++;
             }
-            _before = null; NormalizeSelection();
+            _before = null; _beforeSelection = []; _beforeKey = null; NormalizeSelection();
         }
         catch { CancelEdit(); throw; }
         Changed?.Invoke(ChangeKind.Document);
@@ -78,7 +80,8 @@ public sealed class EditorSession
     public void CancelEdit()
     {
         if (_before is null) return;
-        Project = _before.Restore(); _before = null; NormalizeSelection(); Changed?.Invoke(ChangeKind.Document);
+        Project = _before.Restore(); _before = null;
+        RestoreSelection(_beforeSelection, _beforeKey); _beforeSelection = []; _beforeKey = null; Changed?.Invoke(ChangeKind.Document);
     }
     public void Edit(string name, Action change)
     {
@@ -90,24 +93,30 @@ public sealed class EditorSession
     {
         if (IsEditing) CancelEdit();
         if (_undo.Count == 0) return;
-        var item = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); _redo.Add(item);
-        Project = item.Before.Restore(); _revision++; NormalizeSelection(); Changed?.Invoke(ChangeKind.Document);
+        // Commands may select their newly created layers immediately after committing.
+        // Capture that actual post-command selection before undo so redo restores useful focus.
+        var item = _undo[^1] with { AfterSelection = SelectedIds.ToArray(), AfterKey = SelectedKeyId };
+        _undo.RemoveAt(_undo.Count - 1); _redo.Add(item);
+        Project = item.Before.Restore(); _revision++; RestoreSelection(item.BeforeSelection, item.BeforeKey); Changed?.Invoke(ChangeKind.Document);
     }
     public void Redo()
     {
         if (IsEditing) CancelEdit();
         if (_redo.Count == 0) return;
         var item = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); _undo.Add(item);
-        Project = item.After.Restore(); _revision++; NormalizeSelection(); Changed?.Invoke(ChangeKind.Document);
+        Project = item.After.Restore(); _revision++; RestoreSelection(item.AfterSelection, item.AfterKey); Changed?.Invoke(ChangeKind.Document);
     }
     public void Replace(MotionProject project)
     {
-        ProjectValidator.Validate(project); _before = null; _undo.Clear(); _redo.Clear();
-        Project = project; SelectedIds.Clear(); Time = 0; _revision++; Changed?.Invoke(ChangeKind.Document);
+        ProjectValidator.Validate(project); _before = null; _beforeSelection = []; _beforeKey = null; _undo.Clear(); _redo.Clear();
+        Project = project; SelectedIds.Clear(); SelectedKeyId = null; Time = 0; _revision++; Changed?.Invoke(ChangeKind.Document);
     }
+    private void RestoreSelection(IEnumerable<string> ids, string? key)
+    { SelectedIds.Clear(); SelectedIds.UnionWith(ids); SelectedKeyId = key; NormalizeSelection(); }
     private void NormalizeSelection()
     {
         SelectedIds.IntersectWith(Composition.Layers.Select(l => l.Id));
+        if (SelectedKeyId is not null && !Selection.SelectMany(l => l.Transform.Channels()).SelectMany(p => p.Channel.Keys).Any(k => k.Id == SelectedKeyId)) SelectedKeyId = null;
         Time = Math.Clamp(Time, 0, Composition.LastFrameTime);
     }
 }
