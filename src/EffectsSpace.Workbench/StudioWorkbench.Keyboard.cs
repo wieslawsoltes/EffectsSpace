@@ -30,7 +30,7 @@ public sealed partial class StudioWorkbench
                 switch (e.Key)
                 {
                     case VirtualKey.Z: if (shift) Session.Redo(); else Session.Undo(); break;
-                    case VirtualKey.Y: Session.Redo(); break;
+                    case VirtualKey.Y: if (alt) NewAdjustment(); else Session.Redo(); break;
                     case VirtualKey.S: _ = RunAsync(SaveAsync); break;
                     case VirtualKey.O: _ = RunAsync(OpenAsync); break;
                     case VirtualKey.I: _ = RunAsync(ImportAsync); break;
@@ -42,6 +42,8 @@ public sealed partial class StudioWorkbench
                     case VirtualKey.V: Session.PasteKeys(shift); Timeline.ShowProperties("U"); break;
                     case VirtualKey.A: if (shift || Session.SelectedKeyIds.Count > 0 || Timeline.GraphMode) Session.SelectPropertyKeys(); else Session.SelectAll(); break;
                     case VirtualKey.M: _ = RunAsync(ExportSequenceAsync); break;
+                    case VirtualKey.T: if (alt) EditTime("enable"); else handled = false; break;
+                    case VirtualKey.F: if (alt) EditTime("freeze"); else handled = false; break;
                     case VirtualKey.B: if (alt) { ApplyEffect(EffectKind.GaussianBlur); ShowEffectTracks(); } else handled = false; break;
                     default: handled = false; break;
                 }
@@ -57,6 +59,8 @@ public sealed partial class StudioWorkbench
                 case VirtualKey.F2: if (shift) SetWorkspace("Animation"); else handled = false; break;
                 case VirtualKey.F3: if (shift) Timeline.ToggleGraph(); else handled = false; break;
                 case VirtualKey.F4: if (shift) Timeline.ToggleGraphKind(); else handled = false; break;
+                case VirtualKey.F5: if (shift) _rightPanel.Select("Composite"); else handled = false; break;
+                case VirtualKey.F6: if (shift) ShowRenderStats(); else handled = false; break;
                 case VirtualKey.J: Session.NavigateKey(-1); break;
                 case VirtualKey.K: Session.NavigateKey(1); break;
                 case VirtualKey.B: Session.SetWorkArea(true); break;

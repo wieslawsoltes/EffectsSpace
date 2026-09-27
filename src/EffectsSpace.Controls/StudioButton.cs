@@ -15,6 +15,7 @@ public sealed class StudioButton : Button
         get => _active;
         set
         {
+            if (_active == value) return;
             _active = value; Background = Studio.Brush(value ? "#314960" : "#282828"); Foreground = Studio.Brush(value ? Studio.Accent : Studio.TextColor);
             if (_text is not null) _text.Foreground = Foreground;
             if (_icon is not null) { _icon.Color = value ? Studio.Accent : Studio.TextColor; _icon.Invalidate(); }
@@ -35,5 +36,5 @@ public sealed class StudioButton : Button
         if (action is not null) Click += (_, _) => action();
     }
     public void SetText(string text) { if (_text is not null) _text.Text = text; }
-    public void SetIcon(IconKind kind) { if (_icon is not null) { _icon.Kind = kind; _icon.Invalidate(); } }
+    public void SetIcon(IconKind kind) { if (_icon is not null && _icon.Kind != kind) { _icon.Kind = kind; _icon.Invalidate(); } }
 }

@@ -23,7 +23,9 @@ The browser application is the **same C# Uno workbench compiled to WebAssembly**
 
 ## Compose, animate, refine
 
-**Compose.** Create solids, rounded rectangles, ellipses, stars, Bezier paths, text and images. Move, scale, rotate and adjust anchors directly in the viewer. Use nested compositions, parenting, thirteen blend modes and alpha track mattes. The original **ORBITAL** motion study is built entirely from editable layers.
+**Compose.** Create solids, rounded rectangles, ellipses, stars, Bezier paths, text and images. Move, scale, rotate and adjust anchors directly in the viewer. Edit mask nodes/tangents, independent feather/expansion and guide layers. Use nested compositions, parenting, seventeen blend modes, alpha/luma track mattes and masked adjustment layers. The original **ORBITAL** motion study is built entirely from editable layers.
+
+**Remap.** Animate nested-composition source time, freeze a displayed frame, or reverse temporal Bezier curves. The new Composite panel brings mask, matte, guide and source-time controls together. [Compositing guide](docs/COMPOSITING.md).
 
 **Animate.** Scrub a frame-quantized timeline, trim and split layers, select multiple keys by Shift-click or marquee, and retime the selection as one atomic operation. Copy/cut/paste preserves relative timing, fresh identifiers and interpolation. Cross-layer effect pasting resolves equivalent effect instances rather than copying invalid source IDs.
 
@@ -121,3 +123,9 @@ See [validation](docs/VALIDATION.md), [deployment](docs/DEPLOYMENT.md), [securit
 ## Independence
 
 EffectsSpace is not affiliated with, endorsed by, or distributed by Adobe. Adobe After Effects is a workflow reference only. No Adobe source, binaries, icons, fonts, sample artwork or proprietary project-format implementation is included. All application icons and the ORBITAL sample are original project assets.
+
+## Compositing and performance update
+
+The compositor now evaluates indexed parent transforms once per frame, reuses content-checked native paths/filter chains, and avoids unnecessary isolation for eligible plain filled shapes. Text, gradients, strokes and nested blends keep their compositing isolation. Render Stats reports CPU submission and structural counters, not GPU timestamps. The compositing suite compares reference/optimized pixels and uploads a reproducible CPU-raster benchmark; see [methodology and constraints](docs/COMPOSITING.md).
+
+Run the additional regression suite with `dotnet run --project tests/EffectsSpace.Compositing.Tests -c Release`. Open Composite with `Shift+F5`; create an adjustment with `Ctrl+Alt+Y`; enable source remapping with `Ctrl+Alt+T`.

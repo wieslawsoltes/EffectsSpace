@@ -1,8 +1,8 @@
 namespace EffectsSpace.Core;
 
-public enum LayerKind { Solid, Rectangle, Ellipse, Star, Path, Text, Image, Video, Audio, Null, Composition }
-public enum LayerBlend { Normal, Multiply, Screen, Add, Overlay, SoftLight, HardLight, Difference, Darken, Lighten, ColorDodge, ColorBurn, Exclusion }
-public enum TrackMatte { Alpha, AlphaInverted }
+public enum LayerKind { Solid, Rectangle, Ellipse, Star, Path, Text, Image, Video, Audio, Null, Composition, Adjustment }
+public enum LayerBlend { Normal, Multiply, Screen, Add, Overlay, SoftLight, HardLight, Difference, Darken, Lighten, ColorDodge, ColorBurn, Exclusion, Hue, Saturation, Color, Luminosity }
+public enum TrackMatte { Alpha, AlphaInverted, Luma, LumaInverted }
 
 public sealed class Layer
 {
@@ -13,6 +13,11 @@ public sealed class Layer
     public bool Solo { get; set; }
     public bool Locked { get; set; }
     public bool Shy { get; set; }
+    /// <summary>Visible only in the directly opened composition preview, never in nested compositions or exports.</summary>
+    public bool Guide { get; set; }
+    public bool TimeRemapEnabled { get; set; }
+    /// <summary>Composition-time keys whose values are source seconds. Ignored when time remapping is disabled.</summary>
+    public Channel TimeRemap { get; set; } = new();
     public string Label { get; set; } = "#AA91D2";
     public string? ParentId { get; set; }
     public string? SourceId { get; set; }

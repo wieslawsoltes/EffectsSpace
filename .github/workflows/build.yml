@@ -24,6 +24,8 @@ jobs:
         run: dotnet run --project tests/EffectsSpace.Animation.Tests -c Release
       - name: Run renderer pixel and export tests
         run: dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
+      - name: Run compositing parity and performance tests
+        run: dotnet run --project tests/EffectsSpace.Compositing.Tests -c Release
       - name: Snapshot sources
         if: always()
         run: git archive --format=zip --output=/tmp/EffectsSpace-source.zip HEAD
@@ -36,7 +38,9 @@ jobs:
         if: always()
         with:
           name: EffectsSpace-renderer-validation
-          path: artifacts/screenshots
+          path: |
+            artifacts/screenshots
+            artifacts/performance
           if-no-files-found: ignore
   browser:
     runs-on: ubuntu-latest
@@ -59,7 +63,7 @@ jobs:
           python3 scripts/collect-site.py artifacts/publish artifacts/site
       - name: Browser acceptance tests
         run: |
-          npm install --ignore-scripts
+          npm ci --ignore-scripts
           npx playwright install --with-deps chromium
           python3 scripts/serve-site.py --directory artifacts/site --port 4173 > artifacts/server.log 2>&1 &
           npm run test:browser

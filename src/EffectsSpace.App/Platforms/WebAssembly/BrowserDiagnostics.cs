@@ -33,6 +33,15 @@ internal static class BrowserDiagnostics
                     json.WriteBoolean("canUndo", session.CanUndo); json.WriteBoolean("canRedo", session.CanRedo); json.WriteBoolean("playing", workbench.IsPlaying); json.WriteBoolean("editing", session.IsEditing);
                     json.WriteBoolean("graph", timeline.GraphMode); json.WriteString("graphKind", timeline.GraphKind.ToString()); json.WriteString("property", session.Property);
                     json.WriteString("tool", viewer.Tool.ToString()); json.WriteString("name", layer?.Name); json.WriteString("kind", layer?.Kind.ToString()); json.WriteString("text", layer?.Text);
+                    json.WriteBoolean("guide", layer?.Guide ?? false); json.WriteBoolean("timeRemapEnabled", layer?.TimeRemapEnabled ?? false);
+                    json.WriteNumber("sourceTime", layer is null ? 0 : LayerTime.Evaluate(layer, session.Time));
+                    json.WriteString("matteMode", layer?.Matte.ToString()); json.WriteString("maskEditing", workbench.MaskEditor.MaskId);
+                    json.WriteNumber("directDraws", viewer.Renderer.Metrics.DirectDraws); json.WriteNumber("adjustmentLayers", viewer.Renderer.Metrics.AdjustmentLayers);
+                    json.WriteStartArray("maskPoints"); foreach (var point in workbench.MaskEditor.VisiblePoints())
+                    { json.WriteStartObject(); json.WriteNumber("node", point.Node); json.WriteString("part", point.Part); json.WriteNumber("x", point.X); json.WriteNumber("y", point.Y); json.WriteEndObject(); } json.WriteEndArray();
+                    json.WriteStartArray("maskDetails"); if (layer is not null) foreach (var mask in layer.Masks)
+                    { json.WriteStartObject(); json.WriteString("id", mask.Id); json.WriteNumber("opacity", mask.Opacity); json.WriteNumber("feather", mask.Feather); json.WriteNumber("expansion", mask.Expansion); json.WriteStartArray("nodes"); foreach (var node in mask.Path.Nodes)
+                        { json.WriteStartObject(); json.WriteNumber("x",node.Point.X); json.WriteNumber("y",node.Point.Y); json.WriteNumber("inX",node.InHandle.X); json.WriteNumber("outX",node.OutHandle.X); json.WriteEndObject(); } json.WriteEndArray(); json.WriteEndObject(); } json.WriteEndArray();
                     json.WriteNumber("effects", layer?.Effects.Count ?? 0); json.WriteNumber("masks", layer?.Masks.Count ?? 0); json.WriteNumber("keys", layer is null ? 0 : LayerChannels.Enumerate(layer).Sum(p => p.Channel.Keys.Count));
                     json.WriteNumber("selectedKeys", session.SelectedKeyIds.Count); json.WriteNumber("clipboardKeys", session.KeyClipboard?.KeyCount ?? 0);
                     json.WriteNumber("x", layer is null ? 0 : CurveEvaluator.Evaluate(layer.Transform.X, session.Time)); json.WriteNumber("y", layer is null ? 0 : CurveEvaluator.Evaluate(layer.Transform.Y, session.Time));

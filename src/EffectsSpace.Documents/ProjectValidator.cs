@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Diagnostics.CodeAnalysis;
 using EffectsSpace.Core;
 
 namespace EffectsSpace.Documents;
@@ -8,7 +9,7 @@ public static partial class ProjectValidator
     [GeneratedRegex("^#[0-9a-fA-F]{6}$", RegexOptions.CultureInvariant)] private static partial Regex ColorPattern();
     public static void Validate(MotionProject project)
     {
-        void Require(bool condition, string message) { if (!condition) throw new InvalidDataException(message); }
+        void Require([DoesNotReturnIf(false)] bool condition, string message) { if (!condition) throw new InvalidDataException(message); }
         void Finite(double n, string name, double max = 1e9) => Require(double.IsFinite(n) && Math.Abs(n) <= max, $"Invalid {name}.");
         void Color(string? c) => Require(c is not null && ColorPattern().IsMatch(c), "Colors must use #RRGGBB notation.");
         var keys = 0; var layers = 0; var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -71,12 +72,23 @@ public static partial class ProjectValidator
                 Color(layer.Fill); Color(layer.Stroke); Color(layer.Label); if (layer.GradientEnd is not null) Color(layer.GradientEnd);
                 Require(layer.Transform is not null && layer.Masks is { Count: <= 64 } && layer.Effects is { Count: <= 64 }, "Invalid layer collections.");
                 foreach (var (_, channel) in layer.Transform!.Channels()) Channel(channel);
+                Channel(layer.TimeRemap);
+                if (layer.TimeRemapEnabled)
+                    Require(layer.Kind is LayerKind.Composition or LayerKind.Video or LayerKind.Audio, "Time remapping requires a time-based source.");
                 Path(layer.Path);
-                foreach (var mask in layer.Masks!) { Require(mask is not null, "Null mask."); Id(mask!.Id); Require(Enum.IsDefined(mask.Mode), "Invalid mask mode."); Finite(mask.Feather, "mask feather", 512); Require(mask.Feather >= 0, "Invalid feather."); Path(mask.Path); }
+                foreach (var mask in layer.Masks!) { Require(mask is not null, "Null mask."); Id(mask!.Id); Require(Enum.IsDefined(mask.Mode), "Invalid mask mode."); Finite(mask.Feather, "mask feather", 512); Require(mask.Feather >= 0, "Invalid feather.");
+                    Finite(mask.Opacity, "mask opacity", 100); Require(mask.Opacity >= 0, "Invalid mask opacity.");
+                    Finite(mask.Expansion, "mask expansion", 512); Path(mask.Path); }
                 foreach (var effect in layer.Effects!)
                 {
                     Require(effect is not null && effect.Parameters is { Count: <= 32 }, "Invalid effect."); Id(effect!.Id); Require(Enum.IsDefined(effect.Kind), "Invalid effect kind."); Color(effect.Color);
                     foreach (var channel in effect.Parameters.Values) Channel(channel);
+                }
+                if (layer.Kind == LayerKind.Adjustment)
+                {
+                    Require(layer.Blend == LayerBlend.Normal, "Adjustment layers require Normal blending.");
+                    Require(!layer.Effects.Any(e => e.Enabled && e.Kind is EffectKind.FractalNoise or EffectKind.Vignette),
+                        "Fill generators cannot be applied to an adjustment layer.");
                 }
                 if (layer.Kind == LayerKind.Composition) Require(project.Compositions.Any(c => c.Id == layer.SourceId), "Missing source composition.");
                 if (layer.Kind is LayerKind.Image or LayerKind.Video or LayerKind.Audio) Require(project.Assets.Any(a => a.Id == layer.SourceId), "Missing media asset.");
@@ -86,7 +98,11 @@ public static partial class ProjectValidator
             foreach (var layer in comp.Layers)
             {
                 if (layer.ParentId is { } parent) Require(local.ContainsKey(parent), "Missing parent layer.");
-                if (layer.MatteId is { } matte) Require(local.ContainsKey(matte), "Missing track matte.");
+                if (layer.MatteId is { } matte)
+                {
+                    Require(local.ContainsKey(matte), "Missing track matte.");
+                    Require(local[matte].Kind != LayerKind.Adjustment, "Adjustment layers cannot be matte sources.");
+                }
             }
             CheckCycles(local.Keys, id => new[] { local[id].ParentId, local[id].MatteId }.OfType<string>(), "Layer parent/matte cycle");
         }

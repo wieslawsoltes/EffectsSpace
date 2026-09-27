@@ -1,4 +1,4 @@
-using EffectsSpace.Animation;
+using System.Numerics;
 using EffectsSpace.Core;
 
 namespace EffectsSpace.Rendering;
@@ -7,22 +7,18 @@ public static class RenderPlanner
 {
     public static RenderPlan Build(Composition comp, double time)
     {
-        var solo = comp.Layers.Any(l => l.Enabled && l.Solo);
-        var layers = new List<RenderLayer>();
-        for (var i = comp.Layers.Count - 1; i >= 0; i--)
-        {
-            var l = comp.Layers[i]; if (!l.ActiveAt(time) || (solo && !l.Solo) || l.Kind is LayerKind.Null or LayerKind.Audio) continue;
-            layers.Add(new(l, TransformEvaluator.World(comp, l, time), Math.Clamp(CurveEvaluator.Evaluate(l.Transform.Opacity, time, i + 1), 0, 100) / 100, l.SourceTime(time), i + 1));
-        }
-        return new(comp, time, layers);
+        var frame = new CompositionFrame(comp, time, includeGuides: true);
+        return new(comp, time, frame.Layers);
     }
     public static Layer? HitTest(Composition comp, double time, Vec2 point)
     {
         foreach (var item in Build(comp, time).Layers.Reverse())
         {
-            var l = item.Layer; if (l.Locked || item.Opacity <= 0) continue;
-            var local = TransformEvaluator.ToLocal(comp, l, time, point);
-            if (local is not { } p || !new RectD(0, 0, l.Width, l.Height).Contains(p)) continue;
+            var l = item.Layer; if (l.Locked || l.Kind == LayerKind.Adjustment || item.Opacity <= 0) continue;
+            if (!Matrix3x2.Invert(item.World, out var inverse)) continue;
+            var local = Vector2.Transform(new((float)point.X, (float)point.Y), inverse);
+            var p = new Vec2(local.X, local.Y);
+            if (!new RectD(0, 0, l.Width, l.Height).Contains(p)) continue;
             if (l.Kind == LayerKind.Ellipse)
             {
                 var x = (p.X - l.Width / 2) / (l.Width / 2); var y = (p.Y - l.Height / 2) / (l.Height / 2);

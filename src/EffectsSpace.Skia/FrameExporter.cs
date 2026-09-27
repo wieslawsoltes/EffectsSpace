@@ -17,7 +17,7 @@ public sealed class FrameExporter(SkiaCompositor compositor)
         using var color = SKColorSpace.CreateSrgb();
         using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul, color)) ?? throw new InvalidOperationException("Could not allocate output surface.");
         surface.Canvas.Clear(SKColors.Transparent); surface.Canvas.Scale(width / (float)composition.Width, height / (float)composition.Height);
-        compositor.Render(surface.Canvas, project, composition, time);
+        compositor.Render(surface.Canvas, project, composition, time, includeGuides: false);
         using var image = surface.Snapshot(); using var png = image.Encode(SKEncodedImageFormat.Png, 100);
         return png.ToArray();
     }
