@@ -27,6 +27,7 @@ jobs:
       - run: |
           dotnet workload install wasm-tools --skip-manifest-update
           dotnet run --project tests/EffectsSpace.Tests -c Release
+          dotnet run --project tests/EffectsSpace.Animation.Tests -c Release
           dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
           for project in src/*/*.csproj; do case "$project" in */EffectsSpace.App/*) continue;; esac; dotnet pack "$project" -c Release -o artifacts/packages; done
       - name: Publish explicit release packages

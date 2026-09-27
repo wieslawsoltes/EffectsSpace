@@ -34,13 +34,26 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - run: |
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Test engines and publish browser application
+        run: |
           dotnet workload install wasm-tools --skip-manifest-update
           python3 scripts/fetch-assets.py
           dotnet run --project tests/EffectsSpace.Tests -c Release
+          dotnet run --project tests/EffectsSpace.Animation.Tests -c Release
           dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
           dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release -o artifacts/publish -p:WasmShellWebAppBasePath=/EffectsSpace/
           python3 scripts/collect-site.py artifacts/publish artifacts/site
+      - name: Validate release browser interactions
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+          python3 scripts/serve-site.py --directory artifacts/site --port 4173 > artifacts/server.log 2>&1 &
+          npm run test:browser
+      - name: Archive browser, sources and reusable packages
+        run: |
           mkdir -p artifacts/release
           cd artifacts/site && zip -qr ../release/EffectsSpace-browser.zip . && cd ../..
           git archive --format=zip --output=artifacts/release/EffectsSpace-source.zip HEAD
@@ -49,6 +62,15 @@ jobs:
         with:
           name: release-browser-packages-source
           path: artifacts/release
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: EffectsSpace-release-browser-validation
+          path: |
+            artifacts/screenshots
+            artifacts/test-results
+            artifacts/browser-results.xml
+          if-no-files-found: ignore
   native:
     needs: validate
     strategy:
@@ -97,8 +119,12 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           TAG: ${{ needs.validate.outputs.tag }}
         run: |
+          set -euo pipefail
           cd release
-          sha256sum * > SHA256SUMS.txt
+          shopt -s nullglob
+          FILES=(*.zip *.nupkg *.snupkg)
+          ((${#FILES[@]} > 0)) || { echo 'No release payloads were downloaded'; exit 1; }
+          sha256sum "${FILES[@]}" > SHA256SUMS.txt
           FLAGS=()
           if [[ "$TAG" == *-* ]]; then FLAGS+=(--prerelease); fi
-          gh release create "$TAG" --repo "$REPOSITORY" --verify-tag --title "EffectsSpace $TAG" --generate-notes "${FLAGS[@]}" *
+          gh release create "$TAG" --repo "$REPOSITORY" --verify-tag --title "EffectsSpace $TAG" --generate-notes "${FLAGS[@]}" "${FILES[@]}" SHA256SUMS.txt

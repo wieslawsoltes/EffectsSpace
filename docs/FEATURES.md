@@ -1,29 +1,30 @@
 # Feature ledger
 
-Status describes implemented behavior, not parity marketing. Consult CI for the exact commit's test results.
+Status describes implemented behavior, not complete product parity. Check Actions for validation of the exact source commit.
 
-| Area | Implemented | Explicit boundary |
+| Area | Implemented | Boundary |
 |---|---|---|
-| Studio shell | Dense dark menu/toolbar, project/effect tabs, composition viewer, inspector/effect catalog, timeline/render queue, resizable panels and workspace presets | Not a pixel-certified After Effects replica; no floating native panel windows or arbitrary dock graph |
-| Project | Multiple compositions, image bins, embedded assets, versioned `.effects` JSON, undo/redo, local recovery | No `.aep`, `.aepx`, Adobe importers or linked-media relink workflow |
-| 2D layers | Solids, rounded rectangles, ellipses, stars, Bezier paths, text, raster images, nulls and nested compositions | Video/audio kinds are reserved in the model, not decoded; enabled unsupported media blocks export |
-| Viewer | Fit/zoom/pan, selection, move, eight scale handles, rotation, anchor compensation, shape dragging, path points/handles, inline text | No full pen-tool modifier parity, shape-group operators, 3D gizmos or free transform/perspective tool |
-| Timeline | Frame-snapped scrubbing, playback loop, work area, markers, visible/solo/lock, clip move/trim/slip/split, row culling | No audio waveforms, frame cache bar, full multi-key marquee/clipboard or full AE timeline column set |
-| Animation | Base values, linear/hold/Bezier keys, stopwatches, auto-key, key retiming, value graph, fade/slide/spin presets | No spatial tangents/roving keys, speed graph, graph handle editor, preset file compatibility or expressions on all possible properties |
-| Expressions | Scalar arithmetic, time/value/index/pi, common math, clamp/linear/ease, deterministic wiggle, loopOut | Not JavaScript, ExtendScript or Adobe expression compatibility; no host scripting |
-| Transforms | Anchor, position, scale, rotation, opacity, parent chain, inverse hit transforms | 2D only; changing parent does not automatically preserve the previous world transform |
-| Composition | Thirteen blend modes, alpha/inverted-alpha mattes, recursive pre-compositions, basic multi-sample motion blur | No luma matte, adjustment layers, collapse transforms, 3D cameras/lights, HDR or linear-light compositing |
-| Masks | Editable model paths, add/subtract/intersect, inversion, combined feather | Inspector creates rectangular masks; combined masks use the maximum feather radius, not independent per-mask feather |
-| Effects | Gaussian Blur, Glow, Drop Shadow, Exposure, Brightness & Contrast, Hue/Saturation, Tint, Invert, Posterize, Fractal Noise, Vignette | Glow is a colored halo without Adobe threshold/transfer controls; Fractal Noise is a fill generator; not a general plug-in ecosystem |
-| Text | Bundled Inter, size/fill, multiline content, inline editing | No full HarfBuzz shaping, paragraph layout, font browser, text animators or rich character runs |
-| Images | PNG/JPEG/WebP import, embedded payloads, bounded decoded cache | No RAW, PSD layer import, OpenEXR, image-sequence footage or color-profile workflow |
-| Output | PNG frame, transparent PNG sequence ZIP, rational frame manifest, cancellation and queue status | No video/audio encoder, GIF, ProRes/H.264, render farm or external Adobe Media Encoder |
-| Native/browser | Shared Uno C# workbench, native file pickers, IndexedDB/browser downloads, GitHub Pages | Desktop CI validates compilation; headless Chromium validates software-rendered browser behavior; device GPU certification is separate |
+| Studio shell | Dense dark menu/toolbar, project/effect tabs, composition viewer, inspector/catalog, timeline/queue, resizable panels and workspace presets | Not a pixel-certified After Effects replica; no arbitrary dock graph or floating native panel windows |
+| Projects | Multiple compositions, image bins, embedded assets, versioned `.effects`, transactional history and recovery | No `.aep`, `.aepx`, Adobe importer or linked-media relinking |
+| Layers | Solids, rounded rectangles, ellipses, stars, Bezier paths, text, images, nulls and nested compositions | Video/audio enum types are reserved, not decoded; enabled unsupported media blocks export |
+| Viewer | Fit/zoom/pan, selection, move, eight scale handles, rotation, anchor compensation, shape dragging, path nodes/handles and inline text | No complete pen modifier parity, shape-group operators, perspective or 3D gizmos |
+| Timeline | Frame-snapped scrubbing, elapsed-time playback, work area, markers, switches, clip move/trim/slip/split and cached/cullable rows | No audio waveform, footage frame-cache strip or full Adobe timeline columns |
+| Multi-key editing | Shift selection, rectangular marquee, cross-channel group retiming, frame nudging, session-local copy/cut/paste, replacement and selection-aware undo | No OS/project-interchange keyframe clipboard or scale-time/stretch-selection gesture |
+| Clipboard mapping | Relative time, new IDs, interpolation/handles, same-property or explicit current-property paste, equivalent effect-instance mapping | Missing destinations, time overflow and downsampled incoming collisions are rejected rather than coerced |
+| Curves | Linear/Hold/temporal Bezier, stopwatches, auto-key, editable value graph, signed velocity graph, draggable easing handles, Ease In/Out/Both | No roving keys, spatial tangents or full coupled vector speed editor; flat and expression-driven segments have no handle editor |
+| Effect animation | Stable property paths, stopwatches, auto-key, expressions, graph editing, multi-key clipboard and evaluated inspector fields | Only catalog-defined scalar parameters; colors and shape paths are not animated channels |
+| Expressions | Bounded scalar math, time/value/index/pi, clamp/linear/ease, deterministic wiggle and loopOut | Not JavaScript, ExtendScript, Adobe expression compatibility or host scripting; velocity is numerically estimated |
+| Transforms | Anchor, position, scale, rotation, opacity, parent chains and inverse hit transforms | 2D only; parent changes preserve local values, not the old world transform |
+| Compositing | Thirteen blend modes, alpha/inverted-alpha mattes, recursive pre-comps and basic multi-sample motion blur | No luma matte, adjustment layers, collapse transforms, 3D cameras/lights, HDR or linear-light pipeline |
+| Masks | Model paths, Add/Subtract/Intersect, inversion and combined feather | Inspector creates rectangular masks; enabled masks use their maximum feather after geometric combination |
+| Effects | Gaussian Blur, Glow, Drop Shadow, Exposure, Brightness & Contrast, Hue/Saturation, Tint, Invert, Posterize, Fractal Noise, Vignette | Glow is a colored halo without Adobe threshold controls; Fractal Noise is a fill generator; no Adobe plug-ins |
+| Text | Bundled Inter, size/fill, multiline content and inline editing | No complete shaping/paragraph engine, rich runs, text animators or font browser |
+| Images | PNG/JPEG/WebP import, embedded bytes and bounded decoded cache | No RAW, layered PSD, OpenEXR, footage image sequences or color-profile workflow |
+| Output | Transparent PNG frame, PNG sequence ZIP, rational frame manifest, cancellation and queue status | No video/audio encoder, GIF, ProRes/H.264, render farm or external Media Encoder |
+| Hosts | Shared Uno C# native/browser workbench, native file pickers, IndexedDB/downloads and GitHub Pages | Native CI checks compilation; headless Chromium checks software-rendered behavior; physical GPU/device validation remains separate |
 
 ## Validation categories
 
-Engine tests cover time, curves, expressions, validation, transactions and commands. Renderer tests cover alpha, blend modes, masks, nested compositions, effects, images and PNG output. Browser tests use actual pointer/keyboard interactions and read-only diagnostics. None of those categories establishes complete After Effects compatibility.
+Engine tests cover time, curves, expressions, validation and commands. Animation tests add derivative correctness, multi-key selection/history, group collision handling and clipboard semantics. Renderer tests cover pixels, alpha, masks, effects, images and exports. Browser tests interact with the actual Uno controls using keyboard, pointer and file events.
 
-## Intended extension boundaries
-
-A media implementation should provide source-frame and audio-clock services rather than hiding media elements in the application shell. A future GPU backend should implement the same render-plan and image-resource contracts without breaking Uno composition. New document versions should migrate explicitly rather than silently drop unknown data. Unsupported export content must remain visible as an error, never a successful but incomplete file.
+None of those categories establishes complete After Effects compatibility. Unsupported export media remains an explicit error rather than a successful but incomplete output file.
