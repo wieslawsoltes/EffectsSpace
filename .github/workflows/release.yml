@@ -44,6 +44,7 @@ jobs:
           dotnet run --project tests/EffectsSpace.Tests -c Release
           dotnet run --project tests/EffectsSpace.Animation.Tests -c Release
           dotnet run --project tests/EffectsSpace.Skia.Tests -c Release
+          dotnet run --project tests/EffectsSpace.Compositing.Tests -c Release
           dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release -o artifacts/publish -p:WasmShellWebAppBasePath=/EffectsSpace/
           python3 scripts/collect-site.py artifacts/publish artifacts/site
       - name: Validate release browser interactions

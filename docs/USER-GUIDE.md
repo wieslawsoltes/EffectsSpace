@@ -44,7 +44,7 @@ Use the Expression Property selector to choose the channel. Invalid new expressi
 
 Select a layer and choose an entry in Effects & Presets. Its controls appear in the left Effect Controls panel. Parameters support precise text entry and scrubbing from the small horizontal grip. Effects can be enabled, removed and reordered. Auto-key applies to effect parameters too.
 
-Add Mask creates an inset rectangle in local layer coordinates. Choose Add, Subtract or Intersect, invert it, or adjust feather. The renderer combines mask geometry first and uses the largest feather among enabled masks. Multiple independent feather fields are not modeled as Adobe-equivalent raster operations.
+Add Mask creates an inset rectangle in local layer coordinates. Choose Add, Subtract or Intersect, invert it, or adjust feather. Each mask now has independent feather, opacity and signed raster expansion. Open Composite (Shift+F5) and choose Edit Path to drag mask nodes and tangents directly. Alt-drag a node creates symmetric tangents, Shift mirrors a dragged handle, and Escape cancels a drag.
 
 The Properties panel has parent and track-matte selectors. Cyclic relationships are rejected atomically. A hidden matte can still supply alpha. Pre-compose moves selected layers into a full-size nested composition; include linked parent/matte layers together to avoid crossing dependencies. Changing a parent preserves local values, not the prior world transform.
 
@@ -59,3 +59,7 @@ Save exports a versioned JSON `.effects` file. Open validates the entire project
 Snapshot PNG exports the current frame with alpha. Render PNG Sequence exports every frame in the work area to a ZIP with `sequence.json`, using the exact rational frame rate and an exclusive end time. Exports are limited to 3600 frames and 256 MiB per archive. Use a shorter work area or smaller composition when an export exceeds the budget. Cancellation does not change the project.
 
 This release exports 8-bit sRGB PNG, not professional HDR or color-managed delivery. Enabled video/audio layers are rejected by export because no media decoder/encoder is implemented. See the feature ledger for the complete scope boundary.
+
+## Compositing and source time
+
+Use Composite (Shift+F5) for masked adjustment layers, alpha/luma matte choices, guide status and nested-composition source time. Ctrl+Alt+Y adds an adjustment; Ctrl+Alt+T enables Time Remap; Ctrl+Alt+F freezes the current source time. Remap Graph uses the existing animation tools. Guides are excluded from ordinary nested/export layer rendering. [Full guide, supported semantics and limitations](COMPOSITING.md).

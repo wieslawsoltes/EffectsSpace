@@ -129,9 +129,10 @@ public sealed partial class StudioWorkbench
     private void UpdateValues()
     {
         var layer = Session.Primary; if (layer is null) return;
+        var index = Session.Composition.Layers.IndexOf(layer) + 1;
         foreach (var (path, field) in _transformFields.Concat(_effectFields))
             if (LayerChannels.Find(layer, path) is { } property)
-                field.Value = CurveEvaluator.Evaluate(property.Channel, Session.Time, Session.Composition.Layers.IndexOf(layer) + 1);
+                field.Value = CurveEvaluator.Evaluate(property.Channel, Session.Time, index);
     }
     private void RefreshEffects()
     {
@@ -172,7 +173,7 @@ public sealed partial class StudioWorkbench
             _effects.Children.Add(FieldRow("Feather", Number("Mask feather", mask.Feather, value => mask.Feather = value, 0, 512)));
             _effects.Children.Add(Button(mask.Inverted ? "Inverted ✓" : "Invert mask", () => Session.Edit("Invert mask", () => mask.Inverted = !mask.Inverted)));
         }
-        if (layer.Masks.Count > 1) _effects.Children.Add(new TextBlock { Text = "This renderer feathers the combined mask using the largest feather radius.", FontFamily = Studio.Font, FontSize = 9, Foreground = Studio.Brush(Studio.Muted), TextWrapping = TextWrapping.Wrap });
+        if (layer.Masks.Count > 1) _effects.Children.Add(new TextBlock { Text = "Masks now feather independently. Open Composite for per-mask opacity, expansion and direct path editing.", FontFamily = Studio.Font, FontSize = 9, Foreground = Studio.Brush(Studio.Muted), TextWrapping = TextWrapping.Wrap });
     }
     private void RefreshCatalog()
     {

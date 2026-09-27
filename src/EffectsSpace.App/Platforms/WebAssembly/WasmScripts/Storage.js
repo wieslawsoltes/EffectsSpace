@@ -54,6 +54,8 @@
   };
   // Let the C# editor receive application shortcuts, not browser Save/Open dialogs.
   document.addEventListener('keydown', event => {
+    if (event.shiftKey && ['F2','F3','F4','F5','F6'].includes(event.key)) event.preventDefault();
+    if (event.ctrlKey && event.altKey && ['y','t','f','b'].includes(event.key.toLowerCase())) event.preventDefault();
     if ((event.ctrlKey || event.metaKey) && ['s','o','i','n','k','d','m'].includes(event.key.toLowerCase())) event.preventDefault();
     if (event.key === 'Backspace' && !['INPUT','TEXTAREA'].includes(event.target.tagName)) event.preventDefault();
   }, true);

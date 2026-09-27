@@ -1,7 +1,9 @@
+using System.Numerics;
 using EffectsSpace.Animation;
 using EffectsSpace.Controls;
 using EffectsSpace.Core;
 using EffectsSpace.Editing;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -10,6 +12,7 @@ using SkiaSharp;
 using Uno.WinUI.Graphics2DSK;
 using Windows.Foundation;
 using Windows.System;
+using Windows.UI.Core;
 
 namespace EffectsSpace.Viewer;
 
@@ -26,7 +29,8 @@ public sealed class MaskEditView : UserControl, IDisposable
     private int _node;
     private string _part = "";
     private Vec2 _startPoint, _startIn, _startOut, _down;
-    private bool _dragging, _disposed;
+    private bool _dragging, _disposed, _createTangents, _pointsDirty = true;
+    private IReadOnlyList<MaskEditPoint> _points = [];
     private EditorSession Session => _viewer.Session;
     public string? MaskId => _maskId;
     public event Action<string>? Error;
@@ -48,7 +52,7 @@ public sealed class MaskEditView : UserControl, IDisposable
         KeyDown += (_, e) =>
         {
             if (e.Key == VirtualKey.Escape) { if (_dragging) Cancel(); else Stop(); e.Handled = true; }
-            if (e.Key == VirtualKey.Enter && !_dragging) { Stop(); e.Handled = true; }
+            if (e.Key == VirtualKey.Enter && !_dragging) { Stop(); _viewer.Focus(FocusState.Programmatic); e.Handled = true; }
         };
         Session.Changed += Changed; viewer.ViewChanged += Invalidate;
     }
@@ -58,7 +62,7 @@ public sealed class MaskEditView : UserControl, IDisposable
         if (Resolve() is not { } pair || pair.Layer.Locked) { Stop(); throw new InvalidOperationException("Select an unlocked layer and an existing mask."); }
         Visibility = Visibility.Visible; Invalidate(); Focus(FocusState.Programmatic);
     }
-    public void Stop() { Cancel(); _layerId = _maskId = null; Visibility = Visibility.Collapsed; }
+    public void Stop() { Cancel(); _layerId = _maskId = null; _points = []; _pointsDirty = true; Visibility = Visibility.Collapsed; }
     public void Cancel()
     {
         if (!_dragging) return;
@@ -76,20 +80,26 @@ public sealed class MaskEditView : UserControl, IDisposable
         if (Resolve() is null || !Session.SelectedIds.Contains(_layerId!)) { Stop(); return; }
         Invalidate();
     }
-    private void Invalidate() => _surface.Invalidate();
-    private Vec2 Screen(Layer layer, Vec2 point) => _viewer.ToScreen(TransformEvaluator.ToWorld(Session.Composition, layer, Session.Time, point));
+    private void Invalidate() { _pointsDirty = true; _surface.Invalidate(); }
     public IReadOnlyList<MaskEditPoint> VisiblePoints()
     {
         if (Resolve() is not { } pair || Visibility != Visibility.Visible) return [];
-        var result = new List<MaskEditPoint>();
+        if (!_pointsDirty) return _points;
+        var world = TransformEvaluator.World(Session.Composition, pair.Layer, Session.Time);
+        var result = new List<MaskEditPoint>(pair.Mask.Path.Nodes.Count * 3);
+        void Add(int index, string part, Vec2 local)
+        {
+            var point = Vector2.Transform(new((float)local.X, (float)local.Y), world);
+            var screen = _viewer.ToScreen(new(point.X, point.Y));
+            result.Add(new(index, part, screen.X, screen.Y));
+        }
         for (var i = 0; i < pair.Mask.Path.Nodes.Count; i++)
         {
-            var node = pair.Mask.Path.Nodes[i]; var p = Screen(pair.Layer, node.Point);
-            result.Add(new(i, "Point", p.X, p.Y));
-            foreach (var (part, handle) in new[] { ("In", node.InHandle), ("Out", node.OutHandle) })
-                if (handle.Length > .001) { p = Screen(pair.Layer, node.Point + handle); result.Add(new(i, part, p.X, p.Y)); }
+            var node = pair.Mask.Path.Nodes[i]; Add(i, "Point", node.Point);
+            if (node.InHandle.Length > .001) Add(i, "In", node.Point + node.InHandle);
+            if (node.OutHandle.Length > .001) Add(i, "Out", node.Point + node.OutHandle);
         }
-        return result;
+        _pointsDirty = false; return _points = result;
     }
     private void Draw(SKCanvas canvas)
     {
@@ -106,12 +116,12 @@ public sealed class MaskEditView : UserControl, IDisposable
             canvas.RestoreToCount(saved);
             using var stroke = new SKPaint { Color = SKColor.Parse("#F4D27D"), IsAntialias = true, StrokeWidth = 1, Style = SKPaintStyle.Stroke };
             using var fill = new SKPaint { Color = SKColor.Parse("#F4D27D"), IsAntialias = true };
+            var center = new Vec2();
             foreach (var point in VisiblePoints())
             {
-                if (point.Part == "Point") canvas.DrawRect((float)point.X - 4, (float)point.Y - 4, 8, 8, fill);
+                if (point.Part == "Point") { center = new(point.X, point.Y); canvas.DrawRect((float)point.X - 4, (float)point.Y - 4, 8, 8, fill); }
                 else
                 {
-                    var center = Screen(pair.Layer, pair.Mask.Path.Nodes[point.Node].Point);
                     canvas.DrawLine((float)center.X, (float)center.Y, (float)point.X, (float)point.Y, stroke);
                     canvas.DrawCircle((float)point.X, (float)point.Y, 3.5f, fill);
                 }
@@ -124,13 +134,18 @@ public sealed class MaskEditView : UserControl, IDisposable
     {
         if (Resolve() is not { } pair || pair.Layer.Locked || Session.IsEditing) return;
         var current = e.GetCurrentPoint(_surface); var screen = new Vec2(current.Position.X, current.Position.Y);
-        var hit = VisiblePoints().Where(p => (new Vec2(p.X,p.Y) - screen).Length <= 8)
-            .OrderBy(p => (new Vec2(p.X,p.Y) - screen).Length).ToArray();
+        MaskEditPoint? hit = null; var distance = 64d;
+        foreach (var candidate in VisiblePoints())
+        {
+            var x = candidate.X - screen.X; var y = candidate.Y - screen.Y; var squared = x*x + y*y;
+            if (squared <= distance) { distance = squared; hit = candidate; }
+        }
         e.Handled = true; Focus(FocusState.Pointer);
-        if (hit.Length == 0) return;
+        if (hit is not { } selected) return;
         var local = TransformEvaluator.ToLocal(Session.Composition, pair.Layer, Session.Time, _viewer.ToComposition(screen));
         if (local is null) return;
-        _node = hit[0].Node; _part = hit[0].Part; _down = local.Value;
+        _node = selected.Node; _part = selected.Part; _down = local.Value;
+        _createTangents = _part == "Point" && ModifierDown(e, VirtualKey.Menu, VirtualKeyModifiers.Menu);
         var node = pair.Mask.Path.Nodes[_node]; _startPoint = node.Point; _startIn = node.InHandle; _startOut = node.OutHandle;
         Session.BeginEdit("Edit mask path"); _dragging = true; _surface.CapturePointer(e.Pointer);
     }
@@ -143,13 +158,17 @@ public sealed class MaskEditView : UserControl, IDisposable
             var local = TransformEvaluator.ToLocal(Session.Composition, pair.Layer, Session.Time, _viewer.ToComposition(new(p.X,p.Y)));
             if (local is null) return;
             var delta = local.Value - _down; var node = pair.Mask.Path.Nodes[_node];
-            if (_part == "Point" && !e.KeyModifiers.HasFlag(VirtualKeyModifiers.Menu)) node.Point = _startPoint + delta;
-            else if (_part == "In") { node.InHandle = _startIn + delta; if (e.KeyModifiers.HasFlag(VirtualKeyModifiers.Shift)) node.OutHandle = node.InHandle * -1; }
-            else { node.OutHandle = _part == "Point" ? delta : _startOut + delta; if (_part == "Point" || e.KeyModifiers.HasFlag(VirtualKeyModifiers.Shift)) node.InHandle = node.OutHandle * -1; }
+            if (_part == "Point" && !_createTangents) node.Point = _startPoint + delta;
+            else if (_part == "In") { node.InHandle = _startIn + delta; if (ModifierDown(e, VirtualKey.Shift, VirtualKeyModifiers.Shift)) node.OutHandle = node.InHandle * -1; }
+            else { node.OutHandle = _part == "Point" ? delta : _startOut + delta; if (_part == "Point" || ModifierDown(e, VirtualKey.Shift, VirtualKeyModifiers.Shift)) node.InHandle = node.OutHandle * -1; }
             Session.PreviewChanged(); e.Handled = true;
         }
         catch (Exception ex) { Cancel(); Error?.Invoke(ex.Message); }
     }
+    // Some Uno hosts omit Alt from the pointer modifier snapshot; keyboard state remains authoritative.
+    private static bool ModifierDown(PointerRoutedEventArgs e, VirtualKey key, VirtualKeyModifiers modifier) =>
+        e.KeyModifiers.HasFlag(modifier) || InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
+
     private void Released(object sender, PointerRoutedEventArgs e)
     {
         if (!_dragging) return;

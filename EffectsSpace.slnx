@@ -13,6 +13,7 @@
     <Project Path="src/EffectsSpace.App/EffectsSpace.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/EffectsSpace.Compositing.Tests/EffectsSpace.Compositing.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Tests/EffectsSpace.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Animation.Tests/EffectsSpace.Animation.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Skia.Tests/EffectsSpace.Skia.Tests.csproj" />

@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased — compositing parity and performance
+
+### Added
+
+- Luma and inverted-luma track mattes with source transparency and transformed source coverage.
+- Masked adjustment layers with opacity-preserving interpolation and ordered compositing scopes.
+- Hue, Saturation, Color and Luminosity blend modes.
+- Independent mask feather, opacity, signed raster expansion, None mode and ordering.
+- Reusable WYSIWYG mask node/tangent editor with transaction/cancel/undo behavior.
+- Guide layers excluded from ordinary nested rendering and PNG/sequence exports.
+- Nested-composition Time Remap channels, freeze and continuous Bezier time reversal.
+- Composite panel, menu/keyboard integration, read-only render counters and interaction tests.
+
+### Performance and correctness
+
+- Index layers/assets/compositions and evaluate each shared parent matrix once per frame.
+- Share evaluation for repeated nested source/time pairs without sharing blend backdrops.
+- Cache native geometry and filter chains with exact mutable-content checks and bounded retention.
+- Cull safely bounded offscreen plain shapes and avoid their unnecessary save-layer surfaces.
+- Preserve isolation for text, gradients, strokes, opacity groups and nested composition blends.
+- Reuse image LRU entries without per-hit record allocation and invalidate same-ID changed payloads.
+- Skip unchanged button/icon visual-state invalidation during playback.
+- Add reference-pixel comparisons and a reproducible CPU-raster benchmark to Build and release gates.
+
+
 ## Unreleased — animation editing continuation
 
 ### Added

@@ -34,9 +34,9 @@ History snapshots serialize model metadata but share immutable media payloads, a
 
 Layers are stored front-to-back and rendered back-to-front. The transform chain is anchor translation, scale, rotation, position, then parent world transforms. Parent opacity is not implicitly multiplied into child opacity. Parenting and alpha-matte edges are validated for cycles and depth.
 
-The Skia compositor clips to the composition, draws each layer into a compositing layer, applies its ordered image-filter stack, applies its geometric mask, then applies an optional alpha matte. Nested compositions remain transparent unless their own layer content fills them. A hidden matte can still supply alpha. Thirteen blend modes map directly to Skia blend operations.
+The Skia compositor clips to the composition, uses compositing isolation where semantics require it, applies its ordered image-filter stack, applies its geometric mask, then applies an optional alpha or luma matte. Nested compositions remain transparent unless their own layer content fills them. A hidden matte can still supply alpha. Seventeen blend modes map directly to Skia blend operations.
 
-Masks are combined as geometric union/difference/intersection before rasterization. In this release the maximum feather of the enabled masks is applied to the combined mask. That is explicit limited behavior, not per-mask Adobe feather parity. Fractal Noise is a procedural fill generator; Vignette is a source-atop radial overlay. Other listed effects are image filters. Text uses the bundled Inter typeface and a simple multiline layout, not a complete shaping/paragraph engine.
+Masks now produce independent raster coverages. Each mask is expanded/eroded, feathered, optionally inverted and opacity-scaled before its Add/Subtract/Intersect operation. None preserves metadata without affecting pixels. Square-kernel raster expansion is not an exact analytic path offset. Fractal Noise is a procedural fill generator; Vignette is a source-atop radial overlay. Other listed effects are image filters. Text uses the bundled Inter typeface and a simple multiline layout, not a complete shaping/paragraph engine.
 
 Decoded images live in a disposal-aware LRU cache with a 128 MiB decoded-pixel target. Header dimensions are checked before image creation. The renderer limits a frame to 8192 pixels per dimension and 32 megapixels. Compositions and parent/matte dependencies have bounded nesting.
 
@@ -65,3 +65,7 @@ The application uses custom Uno controls and custom Skia-painted composition/tim
 - Adobe workspace terminology: https://helpx.adobe.com/after-effects/using/workspaces-panels-viewers.html
 
 These references explain public APIs and familiar workflow terminology. They are not evidence of complete compatibility with another application.
+
+## Indexed compositor and time-remapping continuation
+
+See [COMPOSITING.md](COMPOSITING.md) for `CompositionFrame`, memoized parent matrices, same-source-time evaluation sharing, content-checked native resources, direct-draw restrictions, masked adjustment filter scopes and the `LayerTime` channel. `FrameExporter` excludes guide layers; nested previews do likewise. CPU submission counters are deliberately distinct from GPU timing.
