@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><Description>Versioned, validated EffectsSpace documents and platform-neutral storage contracts.</Description></PropertyGroup><ItemGroup><ProjectReference Include="../EffectsSpace.Core/EffectsSpace.Core.csproj" /></ItemGroup></Project>

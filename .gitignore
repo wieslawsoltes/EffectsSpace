@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+artifacts/
+node_modules/
+.vs/
+.idea/
+*.user
+*.binlog
+src/EffectsSpace.App/Assets/Fonts/*.ttf
+src/EffectsSpace.App/Assets/Fonts/OFL.txt
+.DS_Store
