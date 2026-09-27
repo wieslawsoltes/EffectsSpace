@@ -1,0 +1,21 @@
+name: Animation
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: animation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  animation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet run --project tests/EffectsSpace.Animation.Tests -c Release

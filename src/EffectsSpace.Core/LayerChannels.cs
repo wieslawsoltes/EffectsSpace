@@ -1,0 +1,35 @@
+namespace EffectsSpace.Core;
+
+/// <summary>A stable property address. Effect paths use effect identifiers, never mutable stack indices.</summary>
+public sealed record AnimatedProperty(string Path, string Name, Channel Channel, double Minimum, double Maximum,
+    EffectKind? EffectKind = null, int EffectOccurrence = 0, string? Parameter = null);
+
+public static class LayerChannels
+{
+    public static IEnumerable<AnimatedProperty> Enumerate(Layer layer)
+    {
+        foreach (var (name, channel) in layer.Transform.Channels())
+            yield return new(name, DisplayName(name), channel, name == "Opacity" ? 0 : -1e9, name == "Opacity" ? 100 : 1e9);
+        var occurrences = new Dictionary<EffectKind, int>();
+        foreach (var effect in layer.Effects)
+        {
+            var occurrence = occurrences.GetValueOrDefault(effect.Kind);
+            occurrences[effect.Kind] = occurrence + 1;
+            var definition = EffectCatalog.Get(effect.Kind);
+            foreach (var parameter in definition.Parameters)
+                if (effect.Parameters.TryGetValue(parameter.Key, out var channel))
+                    yield return new(EffectPath(effect.Id, parameter.Key), definition.Name + " · " + parameter.Name,
+                        channel, parameter.Minimum, parameter.Maximum, effect.Kind, occurrence, parameter.Key);
+        }
+    }
+
+    public static string EffectPath(string effectId, string parameter) => $"fx/{effectId}/{parameter}";
+    public static AnimatedProperty? Find(Layer layer, string path) => Enumerate(layer).FirstOrDefault(p => p.Path == path);
+    public static Channel Get(Layer layer, string path) => Find(layer, path)?.Channel
+        ?? throw new ArgumentException("The selected property no longer exists: " + path, nameof(path));
+    public static string DisplayName(string property) => property switch
+    {
+        "X" => "Position X", "Y" => "Position Y", "AnchorX" => "Anchor X", "AnchorY" => "Anchor Y",
+        "ScaleX" => "Scale X", "ScaleY" => "Scale Y", _ => property
+    };
+}
