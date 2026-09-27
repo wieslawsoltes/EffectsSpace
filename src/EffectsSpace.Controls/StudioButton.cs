@@ -13,7 +13,13 @@ public sealed class StudioButton : Button
     public bool Active
     {
         get => _active;
-        set { if (_active == value) return; _active = value; Background = Studio.Brush(value ? "#314960" : "#282828"); Foreground = Studio.Brush(value ? Studio.Accent : Studio.TextColor); if (_icon is not null) { _icon.Color = value ? Studio.Accent : Studio.TextColor; _icon.Invalidate(); } }
+        set
+        {
+            if (_active == value) return;
+            _active = value; Background = Studio.Brush(value ? "#314960" : "#282828"); Foreground = Studio.Brush(value ? Studio.Accent : Studio.TextColor);
+            if (_text is not null) _text.Foreground = Foreground;
+            if (_icon is not null) { _icon.Color = value ? Studio.Accent : Studio.TextColor; _icon.Invalidate(); }
+        }
     }
     public StudioButton(string name, Action? action = null, IconKind? icon = null, bool showText = true)
     {
