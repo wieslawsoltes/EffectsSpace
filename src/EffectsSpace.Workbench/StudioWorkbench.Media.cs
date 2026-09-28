@@ -52,7 +52,7 @@ public sealed partial class StudioWorkbench
         _waveform.SetSource(_selectedMedia?.Audio); _mediaPanel.Children.Add(_waveform);
         if (layer is not null && layer.Kind is LayerKind.Audio or LayerKind.Video or LayerKind.Composition)
         {
-            var mute = Button(layer.AudioEnabled ? "Audio Enabled" : "Audio Muted", () => EditLayer("Toggle audio", l => l.AudioEnabled = !l.AudioEnabled), IconKind.Audio);
+            var mute = Button(layer.AudioEnabled ? "Audio Enabled" : "Audio Muted", () => EditLayer(layer, "Toggle audio", () => layer.AudioEnabled = !layer.AudioEnabled), IconKind.Audio);
             mute.Active = layer.AudioEnabled; _mediaPanel.Children.Add(mute);
             _audioGainField = Number("Audio gain dB", CurveEvaluator.Evaluate(layer.AudioGain, Session.Time),
                 value => EditorCommands.SetChannel(layer.AudioGain, Session.Time, value, Session.AutoKey), -96, 24, .25);
