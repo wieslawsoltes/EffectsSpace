@@ -73,8 +73,13 @@ test('Float32 delivery preserves gain headroom and resampling quality invalidate
   const bytes=await wave(page), parts=chunks(bytes), format=parts.get('fmt ');
   expect(format.readUInt16LE(0)).toBe(3); expect(format.readUInt16LE(14)).toBe(32); expect(format.readUInt32LE(4)).toBe(96000);
   expect(parts.get('fact').readUInt32LE(0)).toBe(192000); expect(parts.get('data').length).toBe(192000*8);
-  let peak=0; const data=parts.get('data');
-  for(let offset=0;offset<data.length;offset+=4){const value=data.readFloatLE(offset);expect(Number.isFinite(value)).toBe(true);peak=Math.max(peak,Math.abs(value));}
-  expect(peak).toBeGreaterThan(1); expect(peak).toBeLessThan(4);
+  // Scan every sample, but do not create a Playwright report/trace step for every scalar value.
+  let peak=0, nonfinite=0; const data=parts.get('data');
+  for(let offset=0;offset<data.length;offset+=4){
+    const value=data.readFloatLE(offset);
+    if(!Number.isFinite(value)) nonfinite++;
+    else peak=Math.max(peak,Math.abs(value));
+  }
+  expect(nonfinite).toBe(0); expect(peak).toBeGreaterThan(1); expect(peak).toBeLessThan(4);
   expect((await state(page)).renderError).toBeNull();
 });
