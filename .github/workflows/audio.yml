@@ -1,0 +1,33 @@
+name: Audio Fidelity
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: audio-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Audio signal, container and allocation regression tests
+        run: dotnet run --project tests/EffectsSpace.Audio.Tests -c Release
+      - name: Independent WAVE decoding
+        run: |
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          python3 scripts/verify-audio.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: EffectsSpace-audio-fidelity
+          path: |
+            artifacts/audio
+            artifacts/performance
