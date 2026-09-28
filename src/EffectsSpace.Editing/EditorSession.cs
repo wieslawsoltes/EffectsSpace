@@ -41,6 +41,9 @@ public sealed class EditorSession
     public Layer? Primary => Selection.FirstOrDefault();
 
     public EditorSession(MotionProject project) { ProjectValidator.Validate(project); Project = project; }
+    /// <summary>Capture an independent model for export while sharing immutable encoded media buffers.</summary>
+    public MotionProject CaptureSnapshot() => ProjectSnapshot.Capture(Project).Restore();
+
     public void Select(string? id, bool additive = false)
     {
         if (!additive) SelectedIds.Clear();
@@ -101,7 +104,7 @@ public sealed class EditorSession
         {
             ProjectValidator.Validate(Project); NormalizeSelection();
             var after = ProjectSnapshot.Capture(Project);
-            if (after.Json != _before.Json || !after.Assets.Keys.Order().SequenceEqual(_before.Assets.Keys.Order()))
+            if (!after.SameContentAs(_before))
             {
                 _undo.Add(new(_transactionName, _before, after, _beforeSelection!, CaptureSelection())); _redo.Clear();
                 while (_undo.Count > 100 || _undo.Sum(e => (long)e.Before.Json.Length + e.After.Json.Length) > 32 * 1024 * 1024) _undo.RemoveAt(0);

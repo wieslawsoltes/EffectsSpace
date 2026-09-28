@@ -4,8 +4,13 @@ using EffectsSpace.Documents;
 
 namespace EffectsSpace.App;
 
-internal sealed class BrowserWorkspaceStorage : IWorkspaceStorage
+internal sealed class BrowserWorkspaceStorage : IWorkspaceStorage, IAudioPreview
 {
+    public async Task UnlockAsync() => await BrowserAudio.Unlock();
+    public async Task LoadAsync(byte[] pcmWave) => await BrowserAudio.Load(Convert.ToBase64String(pcmWave));
+    public void Play(double offsetSeconds, bool loop) => BrowserAudio.Play(offsetSeconds, loop);
+    public void Stop() => BrowserAudio.Stop();
+    public double PositionSeconds => BrowserAudio.Position();
     public async Task<string?> ReadRecoveryAsync() => await BrowserFiles.Load();
     public async Task WriteRecoveryAsync(string json) => await BrowserFiles.Save(json);
     public async Task<IReadOnlyList<ImportedFile>> PickFilesAsync(bool projectOnly = false)

@@ -41,7 +41,9 @@ public sealed partial class StudioWorkbench
                     case VirtualKey.X: Session.CutKeys(); ShowStatus("Cut keyframes to the session clipboard"); break;
                     case VirtualKey.V: Session.PasteKeys(shift); Timeline.ShowProperties("U"); break;
                     case VirtualKey.A: if (shift || Session.SelectedKeyIds.Count > 0 || Timeline.GraphMode) Session.SelectPropertyKeys(); else Session.SelectAll(); break;
-                    case VirtualKey.M: _ = RunAsync(ExportSequenceAsync); break;
+                    case VirtualKey.M: _ = RunAsync(alt ? ExportAviAsync : ExportSequenceAsync); break;
+                    case VirtualKey.L: if (alt) LoadMediaStudy(); else handled = false; break;
+                    case VirtualKey.W: if (alt) _ = RunAsync(ExportAudioAsync); else handled = false; break;
                     case VirtualKey.T: if (alt) EditTime("enable"); else handled = false; break;
                     case VirtualKey.F: if (alt) EditTime("freeze"); else handled = false; break;
                     case VirtualKey.B: if (alt) { ApplyEffect(EffectKind.GaussianBlur); ShowEffectTracks(); } else handled = false; break;
@@ -60,6 +62,7 @@ public sealed partial class StudioWorkbench
                 case VirtualKey.F3: if (shift) Timeline.ToggleGraph(); else handled = false; break;
                 case VirtualKey.F4: if (shift) Timeline.ToggleGraphKind(); else handled = false; break;
                 case VirtualKey.F5: if (shift) _rightPanel.Select("Composite"); else handled = false; break;
+                case VirtualKey.F7: if (shift) OpenMedia(); else handled = false; break;
                 case VirtualKey.F6: if (shift) ShowRenderStats(); else handled = false; break;
                 case VirtualKey.J: Session.NavigateKey(-1); break;
                 case VirtualKey.K: Session.NavigateKey(1); break;

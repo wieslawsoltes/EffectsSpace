@@ -54,6 +54,7 @@ public static class EditorCommands
         var copy = ProjectJson.CloneLayer(source); copy.Id = Guid.NewGuid().ToString("N"); copy.Name += " copy";
         foreach (var (_, channel) in copy.Transform.Channels()) foreach (var key in channel.Keys) key.Id = Guid.NewGuid().ToString("N");
         foreach (var effect in copy.Effects) { effect.Id = Guid.NewGuid().ToString("N"); foreach (var c in effect.Parameters.Values) foreach (var k in c.Keys) k.Id = Guid.NewGuid().ToString("N"); }
+        foreach (var channel in new[] { copy.AudioGain, copy.AudioPan }) foreach (var key in channel.Keys) key.Id = Guid.NewGuid().ToString("N");
         foreach (var key in copy.TimeRemap.Keys) key.Id = Guid.NewGuid().ToString("N");
         foreach (var mask in copy.Masks) mask.Id = Guid.NewGuid().ToString("N");
         return copy;
