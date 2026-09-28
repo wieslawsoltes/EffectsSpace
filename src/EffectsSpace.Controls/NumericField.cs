@@ -9,8 +9,9 @@ namespace EffectsSpace.Controls;
 public sealed class NumericField : UserControl
 {
     private readonly TextBox _box;
+    private string _displayText;
     private double _value, _startValue, _startX;
-    private bool _dragging;
+    private bool _dragging, _committing;
     public double Minimum { get; set; } = -100000;
     public double Maximum { get; set; } = 100000;
     public double Step { get; set; } = 1;
@@ -18,38 +19,78 @@ public sealed class NumericField : UserControl
     public event Action<double>? ValueChanging;
     public event Action? EditCompleted;
     public event Action? EditCancelled;
-    public double Value { get => _value; set { _value = value; if (_box.FocusState != FocusState.Keyboard) _box.Text = Format(value); } }
+    public double Value
+    {
+        get => _value;
+        set
+        {
+            if (_value.Equals(value)) return;
+            var clean = _box.Text == _displayText;
+            _value = value;
+            if (clean && !_committing) ShowValue();
+        }
+    }
     public NumericField(string name, double value)
     {
         var root = new Grid();
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(13) }); root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(13) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var grip = new Border { Background = Studio.Brush("#292929"), Child = Studio.Text("↔", 10, Studio.Muted) };
-        _box = Studio.Input(Format(value), name); _box.Foreground = Studio.Brush(Studio.Accent); _box.Background = Studio.Brush("#242424"); _box.BorderThickness = new Thickness(0, 0, 0, 1); _box.Height = 24; _box.MinHeight = 24; _value = value;
+        _displayText = Format(value); _value = value;
+        _box = Studio.Input(_displayText, name); _box.Foreground = Studio.Brush(Studio.Accent); _box.Background = Studio.Brush("#242424");
+        _box.BorderThickness = new Thickness(0, 0, 0, 1); _box.Height = 24; _box.MinHeight = 24;
         root.Children.Add(grip); Grid.SetColumn(_box, 1); root.Children.Add(_box); Content = root;
-        void CommitText()
-        {
-            if (!IsEnabled) return;
-            if (double.TryParse(_box.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && double.IsFinite(parsed))
-            {
-                parsed = Math.Clamp(parsed, Minimum, Maximum);
-                if (Math.Abs(parsed - _value) > 1e-9) { EditStarted?.Invoke(); _value = parsed; ValueChanging?.Invoke(parsed); EditCompleted?.Invoke(); }
-            }
-            _box.Text = Format(_value);
-        }
         _box.LostFocus += (_, _) => CommitText();
         _box.KeyDown += (_, e) =>
         {
             if (e.Key == VirtualKey.Enter) { CommitText(); e.Handled = true; }
-            if (e.Key == VirtualKey.Escape) { _box.Text = Format(_value); e.Handled = true; }
+            if (e.Key == VirtualKey.Escape) { ShowValue(); e.Handled = true; }
         };
-        grip.PointerPressed += (_, e) => { if (!IsEnabled) return; _startX = e.GetCurrentPoint(null).Position.X; _startValue = _value; _dragging = true; EditStarted?.Invoke(); grip.CapturePointer(e.Pointer); e.Handled = true; };
+        grip.PointerPressed += (_, e) =>
+        {
+            if (!IsEnabled) return;
+            CommitText(); _startX = e.GetCurrentPoint(null).Position.X; _startValue = _value;
+            _dragging = true; EditStarted?.Invoke(); grip.CapturePointer(e.Pointer); e.Handled = true;
+        };
         grip.PointerMoved += (_, e) =>
         {
-            if (!_dragging) return; var scale = e.KeyModifiers.HasFlag(VirtualKeyModifiers.Shift) ? .1 : 1;
-            _value = Math.Clamp(_startValue + (e.GetCurrentPoint(null).Position.X - _startX) * Step * scale, Minimum, Maximum); _box.Text = Format(_value); ValueChanging?.Invoke(_value); e.Handled = true;
+            if (!_dragging) return;
+            var scale = e.KeyModifiers.HasFlag(VirtualKeyModifiers.Shift) ? .1 : 1;
+            _value = Math.Clamp(_startValue + (e.GetCurrentPoint(null).Position.X - _startX) * Step * scale, Minimum, Maximum);
+            ShowValue(); ValueChanging?.Invoke(_value); e.Handled = true;
         };
-        grip.PointerReleased += (_, e) => { if (!_dragging) return; _dragging = false; grip.ReleasePointerCapture(e.Pointer); EditCompleted?.Invoke(); e.Handled = true; };
-        grip.PointerCaptureLost += (_, _) => { if (!_dragging) return; _dragging = false; _value = _startValue; _box.Text = Format(_value); EditCancelled?.Invoke(); };
+        grip.PointerReleased += (_, e) =>
+        {
+            if (!_dragging) return;
+            _dragging = false; grip.ReleasePointerCapture(e.Pointer); EditCompleted?.Invoke(); e.Handled = true;
+        };
+        grip.PointerCaptureLost += (_, _) =>
+        {
+            if (!_dragging) return;
+            _dragging = false; _value = _startValue; ShowValue(); EditCancelled?.Invoke();
+        };
+    }
+    private void CommitText()
+    {
+        // A formatted readout is not a user edit. In particular, focus loss after an
+        // inspector rebuild must never write rounded/stale values into a new playhead time.
+        if (_committing || !IsEnabled || !IsLoaded || _box.Text == _displayText) return;
+        _committing = true;
+        try
+        {
+            if (double.TryParse(_box.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && double.IsFinite(parsed))
+            {
+                parsed = Math.Clamp(parsed, Minimum, Maximum);
+                if (Math.Abs(parsed - _value) > 1e-9)
+                { EditStarted?.Invoke(); _value = parsed; ValueChanging?.Invoke(parsed); EditCompleted?.Invoke(); }
+            }
+        }
+        finally { _committing = false; ShowValue(); }
+    }
+    private void ShowValue()
+    {
+        _displayText = Format(_value);
+        if (_box.Text != _displayText) _box.Text = _displayText;
     }
     private static string Format(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 }

@@ -7,17 +7,8 @@ using SkiaSharp;
 namespace EffectsSpace.Skia;
 
 /// <summary>Renders directly into the host's Skia canvas. Preview never uploads a CPU-rendered full frame.</summary>
-public sealed class SkiaCompositor : IDisposable
+public sealed partial class SkiaCompositor : IDisposable
 {
-    private sealed class CachedImage(SKImage image, long bytes, long stamp, byte[]? payload)
-    {
-        public SKImage Image { get; } = image;
-        public long Bytes { get; } = bytes;
-        public long Stamp { get; set; } = stamp;
-        public byte[]? Payload { get; } = payload;
-    }
-    private readonly Dictionary<string, CachedImage> _images = new(StringComparer.Ordinal);
-    private long _stamp, _bytes;
     public SKTypeface Typeface { get; set; } = SKTypeface.Default;
     public long ImageCacheLimit { get; set; } = 128 * 1024 * 1024;
     public long CachedImageBytes => _bytes;
@@ -159,6 +150,11 @@ public sealed class SkiaCompositor : IDisposable
                 var bounds = geometry.Bounds; bounds.Inflate((float)layer.StrokeWidth / 2 + 1, (float)layer.StrokeWidth / 2 + 1);
                 if (canvas.QuickReject(bounds)) { Metrics.CulledLayers++; return; }
             }
+            if (EnableOptimizations && layer.Kind == LayerKind.Video && layer.MatteId is null && !layer.Effects.Any(e => e.Enabled))
+            {
+                var videoBounds = SKRect.Create((float)layer.Width, (float)layer.Height); videoBounds.Inflate(1, 1);
+                if (canvas.QuickReject(videoBounds)) { Metrics.CulledLayers++; return; }
+            }
             Metrics.LayerDraws++;
             if (EnableOptimizations && simple)
             {
@@ -214,9 +210,9 @@ public sealed class SkiaCompositor : IDisposable
         else if (layer.Kind is LayerKind.Image or LayerKind.Video)
         {
             var asset = layer.SourceId is { } sourceId ? _assets.GetValueOrDefault(sourceId) : null;
-            var image = asset is null ? null : layer.Kind == LayerKind.Image ? GetImage(asset) : FindImage(asset.Id + ":video");
+            var image = asset is null ? null : layer.Kind == LayerKind.Image ? GetImage(asset) : GetVideoImage(asset, sourceTime);
+            if (asset is null && layer.Kind == LayerKind.Video) throw new InvalidDataException("Missing video asset.");
             if (image is not null) canvas.DrawImage(image, rect, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-            else if (layer.Kind == LayerKind.Video && asset is not null) MissingVideoFrames.Add(asset.Id);
         }
         else if (layer.Kind == LayerKind.Text)
         {
@@ -239,40 +235,6 @@ public sealed class SkiaCompositor : IDisposable
             using var overlay = new SKPaint { Shader = shader, BlendMode = SKBlendMode.SrcATop, IsAntialias = true }; canvas.DrawRect(rect, overlay);
         }
     }
-    private SKImage? GetImage(MediaAsset asset)
-    {
-        if (_images.TryGetValue(asset.Id, out var cached) && ReferenceEquals(cached.Payload, asset.Data))
-        { cached.Stamp = ++_stamp; return cached.Image; }
-        var image = DecodeImage(asset.Data); PutImage(asset.Id, image, asset.Data); return image;
-    }
-    private SKImage? FindImage(string key)
-    {
-        if (!_images.TryGetValue(key, out var item)) return null;
-        item.Stamp = ++_stamp; return item.Image;
-    }
-    private void PutImage(string key, SKImage image, byte[]? payload = null)
-    {
-        if (_images.Remove(key, out var old)) { _bytes -= old.Bytes; old.Image.Dispose(); }
-        var bytes = (long)image.Width * image.Height * 4;
-        while (_images.Count > 0 && _bytes + bytes > ImageCacheLimit)
-        { var oldest = _images.MinBy(p => p.Value.Stamp); _images.Remove(oldest.Key); _bytes -= oldest.Value.Bytes; oldest.Value.Image.Dispose(); }
-        _images[key] = new(image, bytes, ++_stamp, payload); _bytes += bytes;
-    }
-    public void SetVideoFrame(string assetId, byte[] png) => PutImage(assetId + ":video", DecodeImage(png));
-    public SKImage DecodeImage(byte[] data)
-    {
-        var (w, h) = ImageInfo(data); Budget.Check(w, h);
-        return SKImage.FromEncodedData(data) ?? throw new InvalidDataException("The image could not be decoded.");
-    }
-    public static (int Width, int Height) ImageInfo(byte[] bytes)
-    {
-        if (bytes.Length == 0 || bytes.Length > 32 * 1024 * 1024) throw new InvalidDataException("Image must be between 1 byte and 32 MiB.");
-        using var data = SKData.CreateCopy(bytes); using var codec = SKCodec.Create(data);
-        if (codec is null) throw new InvalidDataException("Unsupported or corrupt image.");
-        RenderBudget.Default.Check(codec.Info.Width, codec.Info.Height); return (codec.Info.Width, codec.Info.Height);
-    }
-    public void ClearImages() { foreach (var i in _images.Values) i.Image.Dispose(); _images.Clear(); _bytes = 0; }
-    public void ClearResources() { ClearImages(); _resources.Clear(); }
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; ClearResources(); _frames.Clear(); _compositions.Clear(); _assets.Clear();

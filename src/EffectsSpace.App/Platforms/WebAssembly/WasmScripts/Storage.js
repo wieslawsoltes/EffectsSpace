@@ -16,7 +16,7 @@
   }
   function mime(file) {
     const ext = file.name.split('.').pop().toLowerCase();
-    return ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',effects:'application/json',json:'application/json'})[ext] || file.type || 'application/octet-stream';
+    return ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',avi:'video/x-msvideo',wav:'audio/wav',effects:'application/json',json:'application/json'})[ext] || file.type || 'application/octet-stream';
   }
   async function encode(file) {
     const project = /\.(effects|json)$/i.test(file.name);
@@ -36,7 +36,7 @@
     },
     open(projectOnly) {
       return new Promise((resolve, reject) => {
-        const input = document.createElement('input'); input.type = 'file'; input.multiple = !projectOnly; input.accept = projectOnly ? '.effects,.json' : '.png,.jpg,.jpeg,.webp,.effects,.json'; input.style.display = 'none'; document.body.append(input);
+        const input = document.createElement('input'); input.type = 'file'; input.multiple = !projectOnly; input.accept = projectOnly ? '.effects,.json' : '.png,.jpg,.jpeg,.webp,.avi,.wav,.effects,.json'; input.style.display = 'none'; document.body.append(input);
         let settled = false;
         const finish = (value, error) => { if (settled) return; settled = true; input.remove(); error ? reject(error) : resolve(value); };
         input.addEventListener('cancel', () => finish('[]'), {once:true});
@@ -54,9 +54,61 @@
   };
   // Let the C# editor receive application shortcuts, not browser Save/Open dialogs.
   document.addEventListener('keydown', event => {
-    if (event.shiftKey && ['F2','F3','F4','F5','F6'].includes(event.key)) event.preventDefault();
-    if (event.ctrlKey && event.altKey && ['y','t','f','b'].includes(event.key.toLowerCase())) event.preventDefault();
+    if (event.shiftKey && ['F2','F3','F4','F5','F6','F7'].includes(event.key)) event.preventDefault();
+    if (event.ctrlKey && event.altKey && ['y','t','f','b','l','w','m'].includes(event.key.toLowerCase())) event.preventDefault();
     if ((event.ctrlKey || event.metaKey) && ['s','o','i','n','k','d','m'].includes(event.key.toLowerCase())) event.preventDefault();
     if (event.key === 'Backspace' && !['INPUT','TEXTAREA'].includes(event.target.tagName)) event.preventDefault();
   }, true);
+})();
+
+(() => {
+  'use strict';
+  let context, buffer, source, serial = 0, anchor = 0, offset = 0, looping = false, loads = 0;
+  function audioContext() {
+    const Audio = globalThis.AudioContext || globalThis.webkitAudioContext;
+    if (!Audio) throw new Error('Web Audio output is not available in this browser.');
+    return context || (context = new Audio({ sampleRate: 48000 }));
+  }
+  function stopSource() {
+    if (source) { source.onended = null; try { source.stop(); } catch { } source.disconnect(); source = undefined; }
+  }
+  globalThis.effectsSpaceAudio = {
+    async unlock() {
+      const audio = audioContext(); await audio.resume();
+      if (audio.state !== 'running') throw new Error('Audio output is suspended. Enable site audio and start playback again.');
+      return 'running';
+    },
+    async load(base64) {
+      if (base64.length > 16 * 1024 * 1024) throw new Error('Prepared audio exceeds the 60-second preview budget.');
+      const version = ++serial, audio = audioContext();
+      const raw = atob(base64), bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const decoded = await audio.decodeAudioData(bytes.buffer);
+      if (version !== serial) throw new Error('Audio preparation was cancelled.');
+      if (decoded.duration > 60.001 || decoded.numberOfChannels !== 2) throw new Error('Invalid prepared stereo audio.');
+      stopSource(); buffer = decoded; loads++; return 'loaded';
+    },
+    play(position, loop) {
+      const audio = audioContext();
+      if (!buffer || !Number.isFinite(position)) throw new Error('No prepared audio buffer.');
+      stopSource();
+      offset = Math.max(0, Math.min(position, Math.max(0, buffer.duration - 1 / buffer.sampleRate)));
+      anchor = audio.currentTime; looping = loop;
+      source = audio.createBufferSource(); source.buffer = buffer; source.loop = loop; source.connect(audio.destination);
+      source.onended = () => { if (!looping) { source?.disconnect(); source = undefined; } };
+      source.start(0, offset);
+    },
+    stop() { serial++; stopSource(); offset = 0; },
+    position() {
+      if (!context || !buffer || !source) return 0;
+      const time = Math.max(0, offset + context.currentTime - anchor);
+      return looping ? time % buffer.duration : Math.min(time, buffer.duration);
+    }
+  };
+  if (new URLSearchParams(location.search).has('test')) {
+    Object.defineProperty(globalThis, 'effectsSpaceAudioDiagnostics', {
+      get() { return Object.freeze({ state: context?.state || 'not-created', playing: !!source, duration: buffer?.duration || 0, loads }); }
+    });
+  }
+  addEventListener('pagehide', () => { serial++; stopSource(); buffer = undefined; context?.close(); context = undefined; });
 })();

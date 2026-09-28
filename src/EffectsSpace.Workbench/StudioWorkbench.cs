@@ -50,7 +50,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
         _root.RowDefinitions.Add(new() { Height = new GridLength(5) });
         _root.RowDefinitions.Add(new() { Height = new GridLength(302), MinHeight = 130 });
         _root.RowDefinitions.Add(new() { Height = new GridLength(22) });
-        Place(_root, BuildMenu(), 0); Place(_root, BuildToolbar(), 1); BuildMiddle(); InitializeCompositing(); Place(_root, _middle, 2);
+        Place(_root, BuildMenu(), 0); Place(_root, BuildToolbar(), 1); BuildMiddle(); InitializeCompositing(); InitializeMedia(); Place(_root, _middle, 2);
         var horizontal = new StudioSplitter(false); horizontal.Dragged += delta => _root.RowDefinitions[4].Height = new GridLength(Math.Clamp(_root.RowDefinitions[4].ActualHeight - delta.Y, 130, Math.Max(160, ActualHeight - 240))); Place(_root, horizontal, 3);
         _bottomPanel.AddTab("Timeline", BuildTimeline()); _bottomPanel.AddTab("Render Queue", Scroll(_queue)); Place(_root, _bottomPanel, 4);
         var footer = new Grid { Background = Studio.Brush("#202020"), Padding = new Thickness(10, 0, 10, 0) };
@@ -78,8 +78,8 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private void RefreshToolButtons() { foreach (var (tool, button) in _tools) button.Active = Viewer.Tool == tool; }
     private void Changed(ChangeKind kind)
     {
-        UpdateTransport(); UpdateAnimationToolbar(); DiagnosticsChanged?.Invoke();
-        if (kind is ChangeKind.Time or ChangeKind.Preview or ChangeKind.KeySelection) { UpdateValues(); UpdateSourceTime(); return; }
+        PlaybackChanged(kind); UpdateTransport(); UpdateAnimationToolbar(); DiagnosticsChanged?.Invoke();
+        if (kind is ChangeKind.Time or ChangeKind.Preview or ChangeKind.KeySelection) { UpdateValues(); UpdateSourceTime(); UpdateMediaValues(); return; }
         if (kind == ChangeKind.Document) { _recoveryTimer.Stop(); _recoveryTimer.Start(); }
         if (_refreshQueued) return; _refreshQueued = true;
         DispatcherQueue.TryEnqueue(() => { _refreshQueued = false; if (!_disposed) Refresh(); });
@@ -87,7 +87,7 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     private void Refresh()
     {
         if (_refreshing || _disposed) return; _refreshing = true;
-        try { RefreshProject(); RefreshProperties(); RefreshEffects(); RefreshCatalog(); RefreshCompositing(); RefreshQueue(); RefreshToolButtons(); UpdateTransport(); UpdateAnimationToolbar(); }
+        try { RefreshProject(); RefreshProperties(); RefreshEffects(); RefreshCatalog(); RefreshCompositing(); RefreshMedia(); RefreshQueue(); RefreshToolButtons(); UpdateTransport(); UpdateAnimationToolbar(); }
         finally { _refreshing = false; }
     }
     private void UpdateTransport()
@@ -95,20 +95,6 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
         _timeLabel.Text = Session.Composition.FrameRate.Timecode(Session.Time); _title.Text = Session.Project.Name;
         _viewerTitle.Text = "Composition  ·  " + Session.Composition.Name; _zoomLabel.Text = $"{Viewer.Zoom * 100:0.#}%";
         _play.SetIcon(IsPlaying ? IconKind.Pause : IconKind.Play); _play.Active = IsPlaying;
-    }
-    public void TogglePlayback()
-    {
-        Viewer.EndText(true); if (IsPlaying) { Pause(); return; }
-        if (Session.IsEditing || IsRendering) return;
-        var c = Session.Composition; if (Session.Time < c.WorkStart || Session.Time >= c.WorkEnd - c.FrameRate.Seconds(1)) Session.SetTime(c.WorkStart);
-        _playStart = Session.Time; _playWatch.Restart(); _playTimer.Start(); UpdateTransport();
-    }
-    public void Pause() { _playTimer.Stop(); _playWatch.Stop(); UpdateTransport(); }
-    private void Tick()
-    {
-        if (Session.IsEditing) { Pause(); return; }
-        var c = Session.Composition; var span = c.WorkEnd - c.WorkStart;
-        Session.SetTime(c.WorkStart + ((_playStart - c.WorkStart + _playWatch.Elapsed.TotalSeconds) % span));
     }
     private void Step(int direction) { Pause(); Session.SetTime(Session.Time + Session.Composition.FrameRate.Seconds(direction)); }
     private void Delete() { if (Session.SelectedKeyIds.Count > 0) Session.DeleteKeys(); else Session.DeleteSelection(); }
@@ -136,6 +122,6 @@ public sealed partial class StudioWorkbench : UserControl, IDisposable
     }
     public new void Dispose()
     {
-        if (_disposed) return; _disposed = true; _playTimer.Stop(); _recoveryTimer.Stop(); _renderCancellation?.Cancel(); Session.Changed -= Changed; MaskEditor.Dispose(); Viewer.Dispose(); Timeline.Dispose(); base.Dispose();
+        if (_disposed) return; _disposed = true; Pause(); _waveform.Dispose(); _mediaCatalog.Clear(); _playTimer.Stop(); _recoveryTimer.Stop(); _renderCancellation?.Cancel(); Session.Changed -= Changed; MaskEditor.Dispose(); Viewer.Dispose(); Timeline.Dispose(); base.Dispose();
     }
 }

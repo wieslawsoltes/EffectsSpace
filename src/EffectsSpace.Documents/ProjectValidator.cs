@@ -45,7 +45,7 @@ public static partial class ProjectValidator
             Require(asset is not null, "Null asset."); Id(asset!.Id);
             Require(asset.Data is not null && asset.Data.Length <= 32 * 1024 * 1024, "An asset exceeds 32 MiB.");
             assetBytes += asset.Data!.Length; Require(assetBytes <= 64 * 1024 * 1024, "Embedded assets exceed 64 MiB.");
-            Require(asset.MimeType is "image/png" or "image/jpeg" or "image/webp" or "video/mp4" or "video/webm" or "audio/wav" or "audio/mpeg" or "audio/ogg" or "audio/webm", "Unsupported media type.");
+            Require(asset.MimeType is "image/png" or "image/jpeg" or "image/webp" or "video/x-msvideo" or "video/mp4" or "video/webm" or "audio/wav" or "audio/mpeg" or "audio/ogg" or "audio/webm", "Unsupported media type.");
             Require(asset.Width >= 0 && asset.Height >= 0 && asset.Width <= 8192 && asset.Height <= 8192, "Invalid media dimensions."); Finite(asset.Duration, "asset duration", 86400);
         }
         foreach (var comp in project.Compositions)
@@ -72,7 +72,9 @@ public static partial class ProjectValidator
                 Color(layer.Fill); Color(layer.Stroke); Color(layer.Label); if (layer.GradientEnd is not null) Color(layer.GradientEnd);
                 Require(layer.Transform is not null && layer.Masks is { Count: <= 64 } && layer.Effects is { Count: <= 64 }, "Invalid layer collections.");
                 foreach (var (_, channel) in layer.Transform!.Channels()) Channel(channel);
-                Channel(layer.TimeRemap);
+                Channel(layer.TimeRemap); Channel(layer.AudioGain); Channel(layer.AudioPan);
+                Require(layer.AudioGain.Value is >= -96 and <= 24 && layer.AudioGain.Keys.All(k => k.Value is >= -96 and <= 24), "Audio gain exceeds -96 to +24 dB.");
+                Require(layer.AudioPan.Value is >= -100 and <= 100 && layer.AudioPan.Keys.All(k => k.Value is >= -100 and <= 100), "Audio balance exceeds -100 to +100.");
                 if (layer.TimeRemapEnabled)
                     Require(layer.Kind is LayerKind.Composition or LayerKind.Video or LayerKind.Audio, "Time remapping requires a time-based source.");
                 Path(layer.Path);

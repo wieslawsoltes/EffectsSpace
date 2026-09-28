@@ -31,6 +31,13 @@ internal static class BrowserDiagnostics
                     json.WriteNumber("layers", session.Composition.Layers.Count); json.WriteNumber("compositions", session.Project.Compositions.Count); json.WriteNumber("assets", session.Project.Assets.Count);
                     json.WriteNumber("time", session.Time); json.WriteNumber("revision", session.Revision); json.WriteNumber("selection", session.SelectedIds.Count);
                     json.WriteBoolean("canUndo", session.CanUndo); json.WriteBoolean("canRedo", session.CanRedo); json.WriteBoolean("playing", workbench.IsPlaying); json.WriteBoolean("editing", session.IsEditing);
+                    json.WriteBoolean("audioClock", workbench.UsesAudioClock); json.WriteBoolean("preparingPlayback", workbench.IsPreparingPlayback);
+                    json.WriteBoolean("waveformReady", workbench.WaveformReady); json.WriteNumber("videoFrame", workbench.SelectedVideoFrame);
+                    json.WriteBoolean("audioEnabled", layer?.AudioEnabled ?? false);
+                    json.WriteNumber("audioGain", layer is null ? 0 : CurveEvaluator.Evaluate(layer.AudioGain, session.Time));
+                    json.WriteNumber("audioPan", layer is null ? 0 : CurveEvaluator.Evaluate(layer.AudioPan, session.Time));
+                    json.WriteNumber("videoImageCreations", viewer.Renderer.VideoImageCreations); json.WriteNumber("videoCacheHits", viewer.Renderer.VideoFrameCacheHits);
+                    json.WriteBoolean("rendering", workbench.IsRendering);
                     json.WriteBoolean("graph", timeline.GraphMode); json.WriteString("graphKind", timeline.GraphKind.ToString()); json.WriteString("property", session.Property);
                     json.WriteString("tool", viewer.Tool.ToString()); json.WriteString("name", layer?.Name); json.WriteString("kind", layer?.Kind.ToString()); json.WriteString("text", layer?.Text);
                     json.WriteBoolean("guide", layer?.Guide ?? false); json.WriteBoolean("timeRemapEnabled", layer?.TimeRemapEnabled ?? false);

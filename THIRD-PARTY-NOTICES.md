@@ -12,8 +12,10 @@ EffectsSpace source is MIT licensed. Direct components and build tools have thei
 | Playwright | Browser acceptance testing only | Apache-2.0 — https://github.com/microsoft/playwright/blob/main/LICENSE |
 | GitHub Actions | CI and artifact/deployment tooling | Respective action repositories; not runtime application code |
 
-The Inter font is downloaded at build time and its OFL notice is retained beside it. Original EffectsSpace icons and the ORBITAL sample are part of the MIT-licensed project.
+The Inter font is downloaded at build time and its OFL notice is retained beside it. Original EffectsSpace icons, the ORBITAL sample, the CLOCKWORK footage/audio generator and the portable RIFF/AVI/PCM implementation are part of the MIT-licensed project.
 
 No Adobe source, binary, icon, font, sample project or proprietary SDK is included. No FFmpeg, GPL media component or proprietary media codec implementation is bundled in this release. Operating-system/browser services are not relicensed by EffectsSpace.
 
 Uno's ecosystem contains independently licensed packages. Consumers redistributing native/browser applications must preserve the actual notices accompanying their resolved dependency graph. Do not infer that every transitive package has the same license as its top-level package.
+
+FFmpeg/ffprobe are used only by `scripts/verify-media.py` in CI for independent interoperability checks. They are neither linked to the application nor included in its NuGet/browser/native artifacts. CI obtains those test tools under the licenses/notices supplied by the runner distribution. Web Audio is a browser-provided output service; EffectsSpace does not distribute a replacement browser audio engine.

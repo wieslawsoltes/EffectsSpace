@@ -5,6 +5,7 @@
     <Project Path="src/EffectsSpace.Documents/EffectsSpace.Documents.csproj" />
     <Project Path="src/EffectsSpace.Editing/EffectsSpace.Editing.csproj" />
     <Project Path="src/EffectsSpace.Rendering/EffectsSpace.Rendering.csproj" />
+    <Project Path="src/EffectsSpace.Media/EffectsSpace.Media.csproj" />
     <Project Path="src/EffectsSpace.Skia/EffectsSpace.Skia.csproj" />
     <Project Path="src/EffectsSpace.Controls/EffectsSpace.Controls.csproj" />
     <Project Path="src/EffectsSpace.Viewer/EffectsSpace.Viewer.csproj" />
@@ -13,6 +14,8 @@
     <Project Path="src/EffectsSpace.App/EffectsSpace.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/EffectsSpace.Media.Tests/EffectsSpace.Media.Tests.csproj" />
+    <Project Path="tests/EffectsSpace.Media.Skia.Tests/EffectsSpace.Media.Skia.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Compositing.Tests/EffectsSpace.Compositing.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Tests/EffectsSpace.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Animation.Tests/EffectsSpace.Animation.Tests.csproj" />

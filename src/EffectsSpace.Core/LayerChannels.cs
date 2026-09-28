@@ -12,6 +12,11 @@ public static class LayerChannels
             yield return new(name, DisplayName(name), channel, name == "Opacity" ? 0 : -1e9, name == "Opacity" ? 100 : 1e9);
         if (layer.TimeRemapEnabled)
             yield return new("TimeRemap", "Time Remap", layer.TimeRemap, -86400, 86400);
+        if (layer.Kind is LayerKind.Audio or LayerKind.Video or LayerKind.Composition)
+        {
+            yield return new("AudioGain", "Audio Gain (dB)", layer.AudioGain, -96, 24);
+            yield return new("AudioPan", "Audio Balance", layer.AudioPan, -100, 100);
+        }
         var occurrences = new Dictionary<EffectKind, int>();
         foreach (var effect in layer.Effects)
         {
@@ -47,6 +52,6 @@ public static class LayerChannels
     public static string DisplayName(string property) => property switch
     {
         "X" => "Position X", "Y" => "Position Y", "AnchorX" => "Anchor X", "AnchorY" => "Anchor Y",
-        "ScaleX" => "Scale X", "ScaleY" => "Scale Y", "TimeRemap" => "Time Remap", _ => property
+        "ScaleX" => "Scale X", "ScaleY" => "Scale Y", "TimeRemap" => "Time Remap", "AudioGain" => "Audio Gain (dB)", "AudioPan" => "Audio Balance", _ => property
     };
 }

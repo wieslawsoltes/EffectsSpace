@@ -31,3 +31,7 @@ Push a version tag such as `v0.1.0-alpha.1`, or use the release workflow's manua
 - `EffectsSpace-public-site-validation`: the same validation against the live Pages URL.
 
 Never use an artifact from a different commit to support a current-build claim. Software-rendered headless Chromium is a functional check; physical GPU performance should be measured separately.
+
+## Media gates
+
+Build, Release and Publish NuGet also run the portable-media and real-frame integration executables, then independently decode the generated AVI files with FFmpeg/ffprobe. FFmpeg is installed only as a CI verification tool and is not copied into application or library artifacts. Build uploads the original/generated media and `media-index.json` benchmark for inspection. Library packaging now produces eleven packages, including `EffectsSpace.Media`.

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>Portable bounded RIFF/WAVE and Motion JPEG AVI containers, sample-accurate audio mixing and media indexing.</Description>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../EffectsSpace.Animation/EffectsSpace.Animation.csproj" /></ItemGroup>
+</Project>

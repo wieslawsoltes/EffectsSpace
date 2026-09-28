@@ -5,6 +5,7 @@ using EffectsSpace.Core;
 using EffectsSpace.Documents;
 using EffectsSpace.Editing;
 using EffectsSpace.Skia;
+using EffectsSpace.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -38,20 +39,37 @@ public sealed partial class StudioWorkbench
         {
             if (file.Name.EndsWith(".effects", StringComparison.OrdinalIgnoreCase) || file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             { var project = ProjectJson.Load(Encoding.UTF8.GetString(file.Data)); Session.Replace(project); Viewer.Renderer.ClearImages(); Viewer.Fit(); Timeline.Fit(); continue; }
-            if (file.MimeType is not ("image/png" or "image/jpeg" or "image/webp")) throw new InvalidDataException("This release imports PNG, JPEG and WebP images. Video/audio decoding is not implemented; no placeholder footage will be created.");
-            var (width, height) = SkiaCompositor.ImageInfo(file.Data);
-            var asset = new MediaAsset { Name = file.Name, MimeType = file.MimeType, Data = file.Data, Width = width, Height = height };
-            Session.Edit("Import " + file.Name, () => Session.Project.Assets.Add(asset)); AddAssetLayer(asset);
+            var asset = new MediaAsset { Name = file.Name, MimeType = file.MimeType, Data = file.Data };
+            if (file.MimeType is "image/png" or "image/jpeg" or "image/webp")
+            { var dimensions = SkiaCompositor.ImageInfo(file.Data); asset.Width = dimensions.Width; asset.Height = dimensions.Height; }
+            else
+            {
+                var content = _mediaCatalog.Get(asset);
+                asset.Width = content.Video?.Width ?? 0; asset.Height = content.Video?.Height ?? 0; asset.Duration = content.Duration;
+                if (content.Duration <= 0) throw new InvalidDataException("Media contains no playable samples.");
+            }
+            var layer = AssetLayer(asset);
+            Session.Edit("Import " + file.Name, () => { Session.Project.Assets.Add(asset); Session.Composition.Layers.Insert(0, layer); });
+            Session.Select(layer.Id); OpenMedia();
         }
         if (files.Count > 0) ShowStatus($"Imported {files.Count} item(s)");
     }
+    private Layer AssetLayer(MediaAsset asset)
+    {
+        var kind = asset.MimeType.StartsWith("image/") ? LayerKind.Image : MediaCatalog.SupportsVideo(asset.MimeType) ? LayerKind.Video : LayerKind.Audio;
+        if (kind != LayerKind.Image) _mediaCatalog.Get(asset);
+        var layer = new Layer { Name = asset.Name, Kind = kind, SourceId = asset.Id, Width = Math.Max(1, asset.Width), Height = Math.Max(1, asset.Height),
+            OutPoint = kind == LayerKind.Image ? Session.Composition.Duration : Math.Min(Session.Composition.Duration, asset.Duration), Label = kind == LayerKind.Audio ? "#91B596" : "#8EC6B3" };
+        layer.Transform.AnchorX.Value = layer.Width / 2; layer.Transform.AnchorY.Value = layer.Height / 2;
+        layer.Transform.X.Value = Session.Composition.Width / 2d; layer.Transform.Y.Value = Session.Composition.Height / 2d;
+        var scale = Math.Min(1, Math.Min(Session.Composition.Width / layer.Width, Session.Composition.Height / layer.Height));
+        layer.Transform.ScaleX.Value = layer.Transform.ScaleY.Value = scale * 100;
+        return layer;
+    }
     private void AddAssetLayer(MediaAsset asset)
     {
-        if (!asset.MimeType.StartsWith("image/")) throw new NotSupportedException("Video and audio layers are reserved in the document model but are not decoded by this release.");
-        var layer = new Layer { Name = asset.Name, Kind = LayerKind.Image, SourceId = asset.Id, Width = asset.Width, Height = asset.Height, OutPoint = Session.Composition.Duration, Label = "#8EC6B3" };
-        layer.Transform.AnchorX.Value = layer.Width / 2; layer.Transform.AnchorY.Value = layer.Height / 2; layer.Transform.X.Value = Session.Composition.Width / 2d; layer.Transform.Y.Value = Session.Composition.Height / 2d;
-        var scale = Math.Min(1, Math.Min(Session.Composition.Width / layer.Width, Session.Composition.Height / layer.Height)); layer.Transform.ScaleX.Value = layer.Transform.ScaleY.Value = scale * 100;
-        Session.Edit("Add footage layer", () => Session.Composition.Layers.Insert(0, layer)); Session.Select(layer.Id);
+        var layer = AssetLayer(asset);
+        Session.Edit("Add footage layer", () => Session.Composition.Layers.Insert(0, layer)); Session.Select(layer.Id); OpenMedia();
     }
     private async Task NewCompositionAsync()
     {
@@ -100,7 +118,6 @@ public sealed partial class StudioWorkbench
     public async Task ExportFrameAsync()
     {
         Pause(); Viewer.EndText(true);
-        RejectUndecodedMedia(Session.Project);
         var bytes = new FrameExporter(Viewer.Renderer).Png(Session.Project, Session.Composition, Session.Time);
         await _storage.SaveFileAsync(SafeName(Session.Composition.Name) + "-" + Session.Composition.FrameRate.Frame(Session.Time).ToString("000000") + ".png", "image/png", bytes);
         ShowStatus("Exported current frame as lossless PNG");
@@ -108,8 +125,8 @@ public sealed partial class StudioWorkbench
     public async Task ExportSequenceAsync()
     {
         if (IsRendering) throw new InvalidOperationException("A render is already running.");
-        Pause(); Viewer.EndText(true); RejectUndecodedMedia(Session.Project);
-        var project = ProjectJson.Clone(Session.Project); var comp = project.Compositions.First(c => c.Id == project.ActiveCompositionId);
+        Pause(); Viewer.EndText(true);
+        var project = Session.CaptureSnapshot(); var comp = project.Compositions.First(c => c.Id == project.ActiveCompositionId);
         var item = new RenderQueueItem { Name = comp.Name, Status = "Rendering" }; _renderItems.Add(item); _bottomPanel.Select("Render Queue"); RefreshQueue();
         _renderCancellation = new(); var token = _renderCancellation.Token;
         try
@@ -123,18 +140,13 @@ public sealed partial class StudioWorkbench
         catch (Exception ex) { item.Status = "Failed"; item.Error = ex.Message; ShowStatus(ex.Message, true); }
         finally { _renderCancellation.Dispose(); _renderCancellation = null; RefreshQueue(); }
     }
-    private static void RejectUndecodedMedia(MotionProject project)
-    {
-        if (project.Compositions.Any(c => c.Layers.Any(l => l.Enabled && l.Kind is LayerKind.Video or LayerKind.Audio)))
-            throw new NotSupportedException("This project contains video/audio layers. This release does not decode them; export is blocked instead of silently omitting media.");
-    }
     private static string SafeName(string name)
     {
         var safe = new string(name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '-').ToArray()).Trim('-'); return safe.Length == 0 ? "EffectsSpace" : safe[..Math.Min(100, safe.Length)];
     }
     private async Task ShowHelpAsync()
     {
-        var text = "EFFECTSSPACE · USER GUIDE\n\nCreate and animate\nSelect a layer in the viewer or timeline. Drag to move it; drag one of its eight handles to scale. Shift constrains shape proportions and rotation. The Rotation and Anchor tools edit those transforms directly. Double-click a text layer to edit in the composition. The Pen tool adds points; drag to create Bezier handles, click the first point to close, or press Enter to finish.\n\nTimeline\nDrag the blue time ruler to scrub. Drag a layer bar to move it; drag its ends to trim. Alt-drag slips source time. Eye, solo and lock switches are live. Expand a layer to see animated properties. P / S / R / T / A show position, scale, rotation, opacity and anchor. U shows animated properties. Drag a diamond to retime a key. In the Graph Editor, drag a key vertically to change its value; Ctrl-click adds a key. F9 applies temporal Easy Ease.\n\nAnimation\nClick a stopwatch to enable animation. Move to another frame and change a property to add another key. Auto-key also creates a first key. Linear, Hold and Bezier interpolation are supported. The scalar expression field accepts time, value, index, pi, arithmetic, sin, cos, abs, sqrt, min, max, clamp, linear, ease, wiggle and loopOut(). It is deliberately not JavaScript or Adobe's expression engine.\n\nProjects and footage\nSave an .effects project to preserve compositions, embedded images, masks, effects, expressions and keyframes. PNG, JPEG and WebP imports are supported. Project data remains on your device. A recovery copy is stored locally; export a project file for a durable backup. Video/audio files are not decoded by this release.\n\nEffects and compositing\nSelect a layer, open Effects & Presets, and choose an effect. The left Effect Controls tab contains live parameters, enable switches and ordering. Properties contains blend, parent and alpha-matte selectors. Pre-compose moves selected layers into a nested composition and retains a composition layer in the parent. Connected parents and mattes must be included together.\n\nRender\nSnapshot PNG exports the current composition frame with alpha. Render Queue exports the work area as a ZIP of PNG frames and a rational frame-rate manifest. Rendering is limited to 32 megapixels per frame, 3600 frames and 256 MiB per archive. Exports use 8-bit sRGB, not a professional HDR/color-management pipeline.\n\nShortcuts\nCtrl+S Save · Ctrl+O Open · Ctrl+I Import · Ctrl+N New Composition\nCtrl+Z Undo · Ctrl+Shift+Z Redo · Ctrl+D Duplicate · Delete Remove\nCtrl+Shift+C Pre-compose · Ctrl+Shift+D Split · Ctrl+M Render\nSpace Play/Pause · Page Up/Down Previous/Next Frame · Home/End\nB/N Work Area Start/End · F9 Easy Ease · Shift+F3 Graph Editor\nV Select · H Hand · Z Zoom · W Rotate · Y Anchor · Q Shape · G Pen\nShift+T Text Tool · Arrow Keys Nudge · Shift+Arrows Nudge 10 px\n\nRelease boundaries\nNo .aep/.aepx import, Adobe plug-ins, video codec pipeline, audio mixing, 3D cameras/lights, tracking, rotoscoping, paint engine, scripting, collaboration or full Adobe parity is claimed. The editable composition and animation core is real; reserved unsupported document types are not silently exported.";
+        var text = "EFFECTSSPACE · USER GUIDE\n\nCreate and animate\nSelect a layer in the viewer or timeline. Drag to move it; drag one of its eight handles to scale. Shift constrains shape proportions and rotation. The Rotation and Anchor tools edit those transforms directly. Double-click a text layer to edit in the composition. The Pen tool adds points; drag to create Bezier handles, click the first point to close, or press Enter to finish.\n\nTimeline\nDrag the blue time ruler to scrub. Drag a layer bar to move it; drag its ends to trim. Alt-drag slips source time. Eye, solo and lock switches are live. Expand a layer to see animated properties. P / S / R / T / A show position, scale, rotation, opacity and anchor. U shows animated properties. Drag a diamond to retime a key. In the Graph Editor, drag a key vertically to change its value; Ctrl-click adds a key. F9 applies temporal Easy Ease.\n\nAnimation\nClick a stopwatch to enable animation. Move to another frame and change a property to add another key. Auto-key also creates a first key. Linear, Hold and Bezier interpolation are supported. The scalar expression field accepts time, value, index, pi, arithmetic, sin, cos, abs, sqrt, min, max, clamp, linear, ease, wiggle and loopOut(). It is deliberately not JavaScript or Adobe's expression engine.\n\nProjects and footage\nSave an .effects project to preserve compositions, embedded images, masks, effects, expressions and keyframes. PNG, JPEG and WebP imports are supported. Project data remains on your device. A recovery copy is stored locally; export a project file for a durable backup. Motion JPEG AVI and PCM WAVE are supported. The Media panel provides waveform, mute/gain/balance and AVI/WAVE export. Browser playback uses a prepared audio buffer limited to 60 seconds; native preview is silent. MP4/H.264/WebM are not supported.\n\nEffects and compositing\nSelect a layer, open Effects & Presets, and choose an effect. The left Effect Controls tab contains live parameters, enable switches and ordering. Properties contains blend, parent and alpha-matte selectors. Pre-compose moves selected layers into a nested composition and retains a composition layer in the parent. Connected parents and mattes must be included together.\n\nRender\nSnapshot PNG exports the current composition frame with alpha. Render Queue exports the work area as a ZIP of PNG frames and a rational frame-rate manifest. Rendering is limited to 32 megapixels per frame, 3600 frames and 256 MiB per archive. Exports use 8-bit sRGB, not a professional HDR/color-management pipeline.\n\nShortcuts\nCtrl+S Save · Ctrl+O Open · Ctrl+I Import · Ctrl+N New Composition\nCtrl+Z Undo · Ctrl+Shift+Z Redo · Ctrl+D Duplicate · Delete Remove\nCtrl+Shift+C Pre-compose · Ctrl+Shift+D Split · Ctrl+M Render\nSpace Play/Pause · Page Up/Down Previous/Next Frame · Home/End\nB/N Work Area Start/End · F9 Easy Ease · Shift+F3 Graph Editor\nV Select · H Hand · Z Zoom · W Rotate · Y Anchor · Q Shape · G Pen\nShift+T Text Tool · Arrow Keys Nudge · Shift+Arrows Nudge 10 px\n\nRelease boundaries\nNo .aep/.aepx import, Adobe plug-ins, general-purpose codec pipeline, 3D cameras/lights, tracking, rotoscoping, paint engine, scripting, collaboration or full Adobe parity is claimed. The editable composition and animation core is real; unsupported video codecs fail explicitly; PNG delivery is visual-only and omits audio by definition.";
         await new ContentDialog { XamlRoot = XamlRoot, Title = "EffectsSpace Documentation", Content = new ScrollViewer { MaxHeight = 540, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontFamily = Studio.Font, FontSize = 12, Foreground = Studio.Brush(Studio.TextColor), MaxWidth = 650 } }, CloseButtonText = "Close", RequestedTheme = ElementTheme.Dark }.ShowAsync();
     }
     private async Task ShowAboutAsync() => await new ContentDialog { XamlRoot = XamlRoot, Title = "EffectsSpace 0.1.0-alpha.1", Content = new TextBlock { Text = "Independent motion-design and compositing workbench.\n\nUno Platform 6.7 · .NET 10 · SkiaSharp 3.119.2\nOriginal code, editable sample artwork and vector iconography.\nMIT licensed.\n\nEffectsSpace is not affiliated with Adobe and does not claim complete After Effects feature or file compatibility.", TextWrapping = TextWrapping.Wrap, FontSize = 13 }, CloseButtonText = "Close", RequestedTheme = ElementTheme.Dark }.ShowAsync();

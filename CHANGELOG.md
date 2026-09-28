@@ -1,5 +1,14 @@
 # Changelog
 
+## Portable media update — 2026-09-28
+
+- Added the MIT-licensed `EffectsSpace.Media` package: bounded RIFF/WAVE and Motion JPEG AVI parsing/writing, zero-copy encoded-frame indexing, PCM integer/float sampling and nested-composition audio mixing.
+- Connected real AVI source frames to Skia transforms, masks/effects, remapping/freezing and the bounded image cache. Added mixed-audio AVI and WAVE exports, exact rational sample partitioning and one reused AVI raster surface.
+- Added Media controls, gain/balance channels, source waveforms, the original CLOCKWORK footage/audio study and buffered Web Audio clock-driven preview. Native preview remains silent; general MP4/H.264/WebM codecs remain unsupported.
+- Fixed history and export snapshots to copy asset metadata while sharing immutable payloads, and to detect asset-byte replacement without metadata changes.
+- Added portable, rendered-media, independent FFmpeg and actual browser-input validation; included the suites in build/release/package gates.
+
+
 ## Unreleased — compositing parity and performance
 
 ### Added

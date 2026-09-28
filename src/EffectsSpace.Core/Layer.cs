@@ -10,6 +10,12 @@ public sealed class Layer
     public string Name { get; set; } = "Layer";
     public LayerKind Kind { get; set; } = LayerKind.Rectangle;
     public bool Enabled { get; set; } = true;
+    /// <summary>Independent audio mute. Layer Enabled still gates the entire source.</summary>
+    public bool AudioEnabled { get; set; } = true;
+    /// <summary>Audio gain in decibels. -96 dB is silence; the supported range is -96 through +24 dB.</summary>
+    public Channel AudioGain { get; set; } = new();
+    /// <summary>Stereo balance from -100 (left) through 0 (unchanged) to +100 (right).</summary>
+    public Channel AudioPan { get; set; } = new();
     public bool Solo { get; set; }
     public bool Locked { get; set; }
     public bool Shy { get; set; }
