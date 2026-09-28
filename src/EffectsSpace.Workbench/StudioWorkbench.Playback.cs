@@ -32,7 +32,7 @@ public sealed partial class StudioWorkbench
             var key = (Session.Revision, comp.Id, comp.WorkStart, comp.WorkEnd);
             var snapshot = Session.CaptureSnapshot();
             var previewComp = snapshot.Compositions.First(c => c.Id == comp.Id);
-            var mixer = new AudioMixer(snapshot, previewComp, _mediaCatalog, includeGuides: true);
+            var mixer = new AudioMixer(snapshot, previewComp, _mediaCatalog, includeGuides: true, quality: _audioQuality);
             if (mixer.HasAudio && _storage is IAudioPreview output)
             {
                 if (comp.WorkEnd - comp.WorkStart > 60) throw new InvalidOperationException("Audio preview is limited to a 60-second work area. Shorten the work area; AVI/WAVE exports support longer bounded output.");

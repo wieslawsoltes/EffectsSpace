@@ -6,7 +6,7 @@ using Windows.Foundation;
 
 namespace EffectsSpace.Viewer;
 
-/// <summary>Reusable source waveform with exact peak buckets, cancellable incremental construction and no per-frame sample decoding.</summary>
+/// <summary>Exact source peak buckets, cancellable block decoding and no per-frame waveform sampling.</summary>
 public sealed class AudioWaveformView : SKCanvasElement
 {
     private PcmSource? _source;
@@ -30,16 +30,26 @@ public sealed class AudioWaveformView : SKCanvasElement
         try
         {
             const int buckets = 1024;
+            const int blockFrames = 4096;
             var minimum = new float[buckets]; var maximum = new float[buckets];
-            for (var bucket = 0; bucket < buckets; bucket++)
+            var buffer = new float[blockFrames * 2];
+            long framesSinceYield = 0;
+            for (int bucket = 0; bucket < buckets; bucket++)
             {
                 long start = source.FrameCount * bucket / buckets, end = source.FrameCount * (bucket + 1) / buckets;
                 float min = 0, max = 0;
-                for (long frame = start; frame < end; frame++)
+                for (long frame = start; frame < end;)
                 {
-                    for (var channel = 0; channel < source.Format.Channels; channel++)
-                    { var value = source.ReadFrame(frame, channel); min = Math.Min(min, value); max = Math.Max(max, value); }
-                    if ((frame & 16383) == 0) { await Task.Yield(); if (generation != _generation) return; }
+                    int count = (int)Math.Min(blockFrames, end - frame);
+                    source.ReadStereoFrames(frame, buffer.AsSpan(0, count * 2));
+                    for (int i = 0; i < count * 2; i++) { min = Math.Min(min, buffer[i]); max = Math.Max(max, buffer[i]); }
+                    frame += count; framesSinceYield += count;
+                    if (framesSinceYield >= 16384)
+                    {
+                        framesSinceYield = 0;
+                        await Task.Yield();
+                        if (generation != _generation) return;
+                    }
                 }
                 minimum[bucket] = min; maximum[bucket] = max;
             }
@@ -58,17 +68,17 @@ public sealed class AudioWaveformView : SKCanvasElement
         var center = (height - 19) / 2; var scale = Math.Max(1, center - 5);
         using var pen = new SKPaint { Color = SKColor.Parse("#87C6B6"), StrokeWidth = 1 };
         var pixels = Math.Max(1, (int)width);
-        for (var x = 0; x < pixels; x++)
+        for (int x = 0; x < pixels; x++)
         {
             int first = x * _minimum.Length / pixels, end = Math.Max(first + 1, (x + 1) * _minimum.Length / pixels);
             float min = 0, max = 0;
-            for (var i = first; i < Math.Min(end, _minimum.Length); i++) { min = Math.Min(min, _minimum[i]); max = Math.Max(max, _maximum[i]); }
+            for (int i = first; i < Math.Min(end, _minimum.Length); i++) { min = Math.Min(min, _minimum[i]); max = Math.Max(max, _maximum[i]); }
             canvas.DrawLine(x, center - Math.Clamp(max, -1, 1) * scale, x, center - Math.Clamp(min, -1, 1) * scale, pen);
         }
-        var duration = _source.Duration;
+        double duration = _source.Duration;
         if (duration > 0)
         {
-            var cursor = (float)((Playhead - _source.StartTime) / duration * width);
+            float cursor = (float)((Playhead - _source.StartTime) / duration * width);
             if (cursor >= 0 && cursor < width) { pen.Color = SKColor.Parse(Studio.Accent); canvas.DrawLine(cursor, 0, cursor, height - 18, pen); }
         }
         Studio.DrawText(canvas, $"0s     {_source.Format.SampleRate / 1000d:0.#} kHz / {_source.Format.Channels} ch     {duration:0.###}s", 7, height - 5, 9, Studio.Muted);

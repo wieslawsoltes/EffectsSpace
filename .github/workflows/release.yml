@@ -47,8 +47,10 @@ jobs:
           dotnet run --project tests/EffectsSpace.Compositing.Tests -c Release
           dotnet run --project tests/EffectsSpace.Media.Tests -c Release
           dotnet run --project tests/EffectsSpace.Media.Skia.Tests -c Release
+          dotnet run --project tests/EffectsSpace.Audio.Tests -c Release
           command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
           python3 scripts/verify-media.py
+          python3 scripts/verify-audio.py
           dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release -o artifacts/publish -p:WasmShellWebAppBasePath=/EffectsSpace/
           python3 scripts/collect-site.py artifacts/publish artifacts/site
       - name: Validate release browser interactions
@@ -75,6 +77,8 @@ jobs:
             artifacts/screenshots
             artifacts/test-results
             artifacts/browser-results.xml
+            artifacts/audio
+            artifacts/performance
           if-no-files-found: ignore
   native:
     needs: validate

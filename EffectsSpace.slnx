@@ -16,6 +16,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/EffectsSpace.Media.Tests/EffectsSpace.Media.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Media.Skia.Tests/EffectsSpace.Media.Skia.Tests.csproj" />
+    <Project Path="tests/EffectsSpace.Audio.Tests/EffectsSpace.Audio.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Compositing.Tests/EffectsSpace.Compositing.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Tests/EffectsSpace.Tests.csproj" />
     <Project Path="tests/EffectsSpace.Animation.Tests/EffectsSpace.Animation.Tests.csproj" />
