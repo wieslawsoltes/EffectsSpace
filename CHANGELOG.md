@@ -1,5 +1,15 @@
 # Changelog
 
+## Audio fidelity and precision delivery — 2026-09-28
+
+- Added left-aligned WAVEFORMATEXTENSIBLE integer precision, strict extension checks, contiguous stereo decoding and 8 KiB per-voice source windows.
+- Added rate-adaptive Blackman-windowed sinc resampling with phase interpolation, exact same-rate integer samples and nested derivative-aware cutoff. Linear remains an explicit compatibility option.
+- Added PCM16/PCM24/Float32 forward-only WAVE delivery, exact lengths/padding/fact sample counts, float headroom and deterministic optional integer TPDF dither.
+- Added Media → Audio Delivery Settings for format, 44.1/48/96 kHz, dither and shared preview/AVI/WAVE quality. Quality changes invalidate the prepared audio buffer without modifying document history.
+- Changed waveform preparation to exact block decoding and added signal-quality, allocation, independent FFmpeg and real browser delivery tests to build/release/package gates.
+- Added an equal-quality PCM lookup benchmark and documented its workload and limits. No native audio output, MP4/WebM, pitch-preserving stretch, RF64 or mastering certification is claimed.
+- See [Audio fidelity](docs/AUDIO-FIDELITY.md) for precise semantics and [feature ledger](docs/FEATURES.md) for remaining scope.
+
 ## Portable media update — 2026-09-28
 
 - Added the MIT-licensed `EffectsSpace.Media` package: bounded RIFF/WAVE and Motion JPEG AVI parsing/writing, zero-copy encoded-frame indexing, PCM integer/float sampling and nested-composition audio mixing.
@@ -7,7 +17,6 @@
 - Added Media controls, gain/balance channels, source waveforms, the original CLOCKWORK footage/audio study and buffered Web Audio clock-driven preview. Native preview remains silent; general MP4/H.264/WebM codecs remain unsupported.
 - Fixed history and export snapshots to copy asset metadata while sharing immutable payloads, and to detect asset-byte replacement without metadata changes.
 - Added portable, rendered-media, independent FFmpeg and actual browser-input validation; included the suites in build/release/package gates.
-
 
 ## Unreleased — compositing parity and performance
 
@@ -32,7 +41,6 @@
 - Reuse image LRU entries without per-hit record allocation and invalidate same-ID changed payloads.
 - Skip unchanged button/icon visual-state invalidation during playback.
 - Add reference-pixel comparisons and a reproducible CPU-raster benchmark to Build and release gates.
-
 
 ## Unreleased — animation editing continuation
 

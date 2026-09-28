@@ -22,14 +22,22 @@ public sealed partial class StudioWorkbench
     public int SelectedVideoFrame => Session.Primary is { } layer && _selectedMedia?.Video is { } video
         ? video.FrameAt(LayerTime.Evaluate(layer, Session.Time, Session.Composition.Layers.IndexOf(layer) + 1)) : -1;
     private void InitializeMedia() => _rightPanel.AddTab("Media", Scroll(_mediaPanel));
-    private void OpenMedia() { _rightPanel.Select("Media"); RefreshMedia(); Focus(FocusState.Programmatic); }
+    private void OpenMedia()
+    {
+        _showAudioDelivery = false;
+        _rightPanel.Select("Media");
+        RefreshMedia();
+        Focus(FocusState.Programmatic);
+    }
 
     private void RefreshMedia()
     {
+        if (_showAudioDelivery) { RefreshAudioDelivery(); return; }
         _mediaPanel.Children.Clear(); _audioGainField = _audioPanField = null; _selectedMedia = null;
         _mediaPanel.Children.Add(Heading("FOOTAGE / AUDIO"));
         _mediaPanel.Children.Add(Studio.Row(Button("Import Media", () => _ = RunAsync(ImportAsync), IconKind.Import),
             Button("Clockwork Sample", LoadMediaStudy, IconKind.Composition)));
+        _mediaPanel.Children.Add(Button("Audio Delivery Settings", OpenAudioDelivery, IconKind.Settings));
         _mediaPanel.Children.Add(Note("Motion JPEG AVI · PCM WAVE · PNG/JPEG/WebP\nMedia stays on your device."));
         var layer = Session.Primary;
         if (layer?.SourceId is { } id && Session.Project.Assets.FirstOrDefault(a => a.Id == id) is { } asset)
@@ -43,7 +51,7 @@ public sealed partial class StudioWorkbench
                     if (_selectedMedia.Video is { } video)
                         _mediaPanel.Children.Add(Note($"Motion JPEG · {video.Width} × {video.Height}\n{video.FrameRate} · {video.FrameCount} frames · {video.Duration:0.###}s"));
                     if (_selectedMedia.Audio is { } audio)
-                        _mediaPanel.Children.Add(Note($"PCM {(audio.Format.FloatingPoint ? "float" : "integer")} {audio.Format.BitsPerSample}-bit · {audio.Format.SampleRate} Hz\n{audio.Format.Channels} channels · {audio.Duration:0.###}s"));
+                        _mediaPanel.Children.Add(Note($"PCM {(audio.Format.FloatingPoint ? "float" : "integer")} {audio.Format.SamplePrecision}/{audio.Format.BitsPerSample}-bit · {audio.Format.SampleRate} Hz\n{audio.Format.Channels} channels · {audio.Duration:0.###}s"));
                 }
                 catch (Exception ex) { _mediaPanel.Children.Add(Note(ex.Message)); }
             }
@@ -66,7 +74,7 @@ public sealed partial class StudioWorkbench
         _mediaPanel.Children.Add(Heading("DELIVERY"));
         _mediaPanel.Children.Add(Button("Export AVI + Audio", () => _ = RunAsync(ExportAviAsync), IconKind.Render));
         _mediaPanel.Children.Add(Button("Export Audio WAVE", () => _ = RunAsync(ExportAudioAsync), IconKind.Audio));
-        _mediaPanel.Children.Add(Note("AVI: Motion JPEG, 8-bit sRGB, composition background, stereo PCM16/48 kHz. No alpha.\nWAVE: stereo PCM16/48 kHz. Exports use the work area."));
+        _mediaPanel.Children.Add(Note($"AVI: Motion JPEG, 8-bit sRGB, stereo PCM16/48 kHz; no alpha.\nWAVE: {_waveEncoding} / {_waveSampleRate} Hz. Both use the work area."));
         _mediaPanel.Children.Add(Note(_storage is IAudioPreview
             ? "Space previews mixed audio on the browser audio clock. Prepared previews are limited to 60 seconds."
             : "This native host has silent timeline preview. Mixed audio is included in AVI and WAVE exports."));
@@ -98,26 +106,31 @@ public sealed partial class StudioWorkbench
         if (IsRendering) throw new InvalidOperationException("A render is already running.");
         Pause(); Viewer.EndText(true);
         var project = Session.CaptureSnapshot(); var comp = project.Compositions.First(c => c.Id == project.ActiveCompositionId);
-        var item = new RenderQueueItem { Name = comp.Name, Format = video ? "MJPEG AVI / PCM audio" : "PCM WAVE", Status = "Rendering" };
+        var encoding = _waveEncoding; int rate = _waveSampleRate; bool dither = _waveDither;
+        var quality = _audioQuality;
+        var item = new RenderQueueItem { Name = comp.Name, Format = video ? "MJPEG AVI / PCM16 audio" : $"WAVE {encoding} / {rate} Hz", Status = "Rendering" };
         _renderItems.Add(item); _bottomPanel.Select("Render Queue"); RefreshQueue(); Focus(FocusState.Programmatic);
         var cancellation = new CancellationTokenSource(); _renderCancellation = cancellation;
         try
         {
+            var progress = new Progress<double>(value =>
+            {
+                if (!ReferenceEquals(_renderCancellation, cancellation)) return;
+                item.Progress = value; RefreshQueue(); ShowStatus($"Encoding {comp.Name}: {value:P0}");
+            });
             byte[] bytes;
             if (video)
             {
                 using var renderer = new SkiaCompositor { Typeface = Viewer.Renderer.Typeface, MotionBlurSamples = Viewer.Renderer.MotionBlurSamples };
-                var progress = new Progress<double>(value =>
-                {
-                    if (!ReferenceEquals(_renderCancellation, cancellation)) return;
-                    item.Progress = value; RefreshQueue(); ShowStatus($"Encoding {comp.Name}: {value:P0}");
-                });
-                bytes = await new AviExporter(renderer).ExportAsync(project, comp, progress: progress, cancellationToken: cancellation.Token);
+                bytes = await new AviExporter(renderer).ExportAsync(project, comp, progress: progress,
+                    cancellationToken: cancellation.Token, resamplingQuality: quality);
             }
-            else bytes = await new AudioMixer(project, comp).WaveAsync(comp.WorkStart, comp.WorkEnd - comp.WorkStart, cancellationToken: cancellation.Token);
+            else bytes = await WaveRenderer.RenderAsync(new AudioMixer(project, comp, quality: quality), comp.WorkStart,
+                comp.WorkEnd - comp.WorkStart, encoding, rate, dither, progress: progress, cancellationToken: cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             await _storage.SaveFileAsync(SafeName(comp.Name) + (video ? ".avi" : ".wav"), video ? "video/x-msvideo" : "audio/wav", bytes);
-            item.Progress = 1; item.Status = "Completed"; ShowStatus(video ? "Exported Motion JPEG AVI with mixed PCM audio" : "Exported stereo PCM WAVE");
+            item.Progress = 1; item.Status = "Completed";
+            ShowStatus(video ? "Exported Motion JPEG AVI with mixed PCM audio" : $"Exported stereo WAVE: {encoding} / {rate} Hz / {quality}");
         }
         catch (OperationCanceledException) { item.Status = "Cancelled"; ShowStatus("Media export cancelled; the project was not changed."); }
         catch (Exception ex) { item.Status = "Failed"; item.Error = ex.Message; ShowStatus(ex.Message, true); }

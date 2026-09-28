@@ -30,10 +30,13 @@ jobs:
         run: |
           dotnet run --project tests/EffectsSpace.Media.Tests -c Release
           dotnet run --project tests/EffectsSpace.Media.Skia.Tests -c Release
-      - name: Independently decode exported media
+      - name: Run audio fidelity, precision and allocation tests
+        run: dotnet run --project tests/EffectsSpace.Audio.Tests -c Release
+      - name: Independently decode exported media and WAVE formats
         run: |
           command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
           python3 scripts/verify-media.py
+          python3 scripts/verify-audio.py
       - name: Snapshot sources
         if: always()
         run: git archive --format=zip --output=/tmp/EffectsSpace-source.zip HEAD
@@ -50,6 +53,7 @@ jobs:
             artifacts/screenshots
             artifacts/performance
             artifacts/media
+            artifacts/audio
           if-no-files-found: ignore
   browser:
     runs-on: ubuntu-latest
