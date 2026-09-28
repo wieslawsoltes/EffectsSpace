@@ -83,3 +83,9 @@ dotnet pack src/EffectsSpace.Workbench -c Release -o artifacts/packages
 ```
 
 The Uno packages multi-target desktop and browser. Install `wasm-tools` before packing them. Build artifacts contain NuGet packages; repository automation does not imply the packages are already published to nuget.org. The optional publish workflow requires an explicit package-feed credential supplied by the repository owner.
+
+## Portable media
+
+`EffectsSpace.Media` is the eleventh packable library and has no Uno/Skia dependency. Use `AviSource`, `WaveFile`, `PcmSource`, `MediaCatalog`, `AudioMixer` and `MjpegAviWriter` independently. `EffectsSpace.Skia.AviExporter` connects these components to rendered composition frames. A storage adapter can additionally implement `IAudioPreview` to supply audio output and a playback clock; `AudioWaveformView` is reusable without the full workbench. [Media contracts and complete examples](MEDIA.md).
+
+Use `session.CaptureSnapshot()` for independent export model metadata while retaining shared immutable media buffers. Mutating the returned model does not mutate the editor, but writing into either snapshot's `MediaAsset.Data` array violates the shared-buffer contract.

@@ -16,7 +16,7 @@ The Pen tool adds points with clicks. Drag after placing a point to create symme
 
 ## Build a timeline
 
-Click the ruler to position the playhead. Space plays or pauses the work area using an elapsed-time clock. Page Up/Down moves one frame; Shift moves ten frames. Home/End reaches the composition endpoints. B sets the work-area start at the current frame; N sets its exclusive end after the current frame. Work-area handles can be dragged directly.
+Click the ruler to position the playhead. Space plays or pauses the work area. Browser projects with supported audio follow the prepared Web Audio clock; silent/native preview uses an elapsed-time clock. Page Up/Down moves one frame; Shift moves ten frames. Home/End reaches the composition endpoints. B sets the work-area start at the current frame; N sets its exclusive end after the current frame. Work-area handles can be dragged directly.
 
 Click a layer name to select it. Shift-click toggles membership in the selection. The eye, solo dot and lock controls are live switches. Drag a clip to move it; drag its edges to trim; Alt-drag slips the source offset. Full-duration layers cannot move beyond the composition boundary, so trim first when an offset is needed. Ctrl+Shift+D splits at the playhead. Delete removes an unlocked selection. Ctrl+D duplicates layers with fresh identifiers and remapped selected parent/matte links.
 
@@ -42,7 +42,7 @@ Use the Expression Property selector to choose the channel. Invalid new expressi
 
 ## Effects, masks and parent relationships
 
-Select a layer and choose an entry in Effects & Presets. Its controls appear in the left Effect Controls panel. Parameters support precise text entry and scrubbing from the small horizontal grip. Effects can be enabled, removed and reordered. Auto-key applies to effect parameters too.
+Select a layer and choose an entry in Effects & Presets. Its controls appear in the left Effect Controls panel. Parameters support precise text entry and scrubbing from the small horizontal grip. Effects can be enabled, removed and reordered.
 
 Add Mask creates an inset rectangle in local layer coordinates. Choose Add, Subtract or Intersect, invert it, or adjust feather. Each mask now has independent feather, opacity and signed raster expansion. Open Composite (Shift+F5) and choose Edit Path to drag mask nodes and tangents directly. Alt-drag a node creates symmetric tangents, Shift mirrors a dragged handle, and Escape cancels a drag.
 
@@ -50,7 +50,9 @@ The Properties panel has parent and track-matte selectors. Cyclic relationships 
 
 ## Import, save and recover
 
-Import PNG, JPEG or WebP footage. Images are validated before creation and embedded in the project, so `.effects` files remain self-contained. Each image is limited to 32 MiB, total embedded media to 64 MiB, and image/render dimensions to the documented budgets. Unsupported footage is rejected instead of represented by a decorative placeholder.
+Import PNG, JPEG, WebP, Motion JPEG AVI or PCM WAVE. Container metadata is validated before adding media and its layer atomically; JPEG frames are validated as consumed. Encoded assets are embedded in the project, so `.effects` files remain self-contained. Each asset is limited to 32 MiB, total embedded media to 64 MiB, and image/render dimensions to the documented budgets. Unsupported codecs fail explicitly rather than being rendered as decorative placeholders.
+
+Open Media with Shift+F7 for source metadata, waveform, audio mute, gain/balance automation and AVI/WAVE delivery. Ctrl+Alt+L loads the original CLOCKWORK video/audio study. Browser audible preview uses a prepared work-area buffer limited to 60 seconds. Native timeline preview is currently silent; desktop AVI and WAVE exports contain mixed audio. See [the media guide](MEDIA.md) for exact format support.
 
 Save exports a versioned JSON `.effects` file. Open validates the entire project before replacing the current session. Keep project exports as durable backups. Browser IndexedDB and desktop local-application-data recovery are conveniences, not a substitute for backups. A failed recovery load is reported without deleting the original recovery file.
 
@@ -58,7 +60,7 @@ Save exports a versioned JSON `.effects` file. Open validates the entire project
 
 Snapshot PNG exports the current frame with alpha. Render PNG Sequence exports every frame in the work area to a ZIP with `sequence.json`, using the exact rational frame rate and an exclusive end time. Exports are limited to 3600 frames and 256 MiB per archive. Use a shorter work area or smaller composition when an export exceeds the budget. Cancellation does not change the project.
 
-This release exports 8-bit sRGB PNG, not professional HDR or color-managed delivery. Enabled video/audio layers are rejected by export because no media decoder/encoder is implemented. See the feature ledger for the complete scope boundary.
+PNG delivery is visual-only, 8-bit sRGB with alpha. Ctrl+Alt+M exports Motion JPEG AVI with stereo PCM16/48 kHz audio; Ctrl+Alt+W exports the mix as WAVE. AVI flattens transparency over the composition background. These are not professional HDR/color-managed or general MP4/H.264/ProRes delivery paths. Source-time changes affect pitch through linear audio resampling. See the feature ledger and media guide for the complete scope boundary.
 
 ## Compositing and source time
 

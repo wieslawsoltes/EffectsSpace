@@ -110,7 +110,7 @@ public sealed class AudioMixer
         if (!double.IsFinite(start) || !double.IsFinite(duration) || start < 0 || duration <= 0 || sampleRate is < 8000 or > 192000)
             throw new ArgumentOutOfRangeException(nameof(duration));
         long total = checked((long)Math.Floor(duration * sampleRate + 1e-8));
-        if (total * 4 + 44 > maximumBytes) throw new InvalidOperationException("WAVE output exceeds the configured byte budget.");
+        if (maximumBytes < 44 || total > (maximumBytes - 44) / 4) throw new InvalidOperationException("WAVE output exceeds the configured byte budget.");
         using var stream = new MemoryStream(); WaveFile.WriteHeader(stream, sampleRate, 2, total);
         var block = new float[4096 * 2];
         for (long frame = 0; frame < total; frame += 4096)

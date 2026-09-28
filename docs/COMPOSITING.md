@@ -44,7 +44,7 @@ Change Source (s), enable auto-key, or use Remap Graph to edit it with the exist
 
 Freeze or **Ctrl+Alt+F** replaces remapping with the currently evaluated constant source time. Reverse reflects the remap keys and reverses their temporal Bezier controls, preserving the reflected curve. Reversal of expression-driven or discontinuous Hold remaps is rejected rather than silently changing boundary semantics. Disable Remap restores the ordinary source-offset/stretch mapping while retaining the stored channel data.
 
-Source time outside the nested composition is transparent; it is not silently clamped to a frame. Remapping is implemented for real nested-composition rendering. Video/audio model types can carry source time, but this release still has no video/audio decoder or encoder.
+Source time outside the nested composition is transparent; it is not silently clamped to a frame. Remapping is implemented for real nested-composition rendering. Motion JPEG AVI frames and PCM audio now use the same source-time mapping; see [MEDIA.md](MEDIA.md). General-purpose codecs remain outside this implementation.
 
 ## Renderer evaluation and resource ownership
 

@@ -12,7 +12,10 @@ async function begin(page) {
   expect((await state(page)).renderError).toBeNull();
 }
 async function focusTimeline(page) {
-  const s = await state(page); await page.mouse.click(s.timeline.x + 170, s.timeline.y + 28);
+  const s = await state(page);
+  const row = s.rows.find(r => !r.property && r.name === s.name) || s.rows.find(r => !r.property);
+  if (!row) throw new Error('A visible timeline layer is required.');
+  await page.mouse.click(s.timeline.x + 170, s.timeline.y + row.y + 11);
 }
 async function control(page, name, type = 'StudioButton') {
   await expect.poll(async () => (await state(page)).controls.some(c => c.name === name && c.type === type)).toBeTruthy();

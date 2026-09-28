@@ -22,7 +22,7 @@ public sealed class MjpegAviWriter : IDisposable
         ArgumentNullException.ThrowIfNull(stream);
         if (!stream.CanWrite || !stream.CanSeek || stream.Position != 0 || stream.Length != 0) throw new ArgumentException("AVI output must be an empty, seekable writable stream.", nameof(stream));
         if (width is < 1 or > 8192 || height is < 1 or > 8192 || (long)width * height > 33554432 || frameCount is < 1 or > 100000 ||
-            frameRate.Numerator <= 0 || frameRate.Denominator <= 0 || frameRate.FramesPerSecond is < 1 or > 240)
+            frameRate.Numerator is <= 0 or > 240000000 || frameRate.Denominator is <= 0 or > 1000000 || frameRate.FramesPerSecond is < 1 or > 240)
             throw new ArgumentOutOfRangeException(nameof(frameCount));
         if (audioSampleRate != 0) new PcmFormat(audioSampleRate, 2, 16).Validate();
         if (maximumBytes is < 1024 or > uint.MaxValue) throw new ArgumentOutOfRangeException(nameof(maximumBytes));

@@ -69,3 +69,11 @@ These references explain public APIs and familiar workflow terminology. They are
 ## Indexed compositor and time-remapping continuation
 
 See [COMPOSITING.md](COMPOSITING.md) for `CompositionFrame`, memoized parent matrices, same-source-time evaluation sharing, content-checked native resources, direct-draw restrictions, masked adjustment filter scopes and the `LayerTime` channel. `FrameExporter` excludes guide layers; nested previews do likewise. CPU submission counters are deliberately distinct from GPU timing.
+
+## Portable media and audio output
+
+`EffectsSpace.Media` depends on Animation/Core, not Uno or Skia. It owns RIFF traversal, AVI/WAVE metadata, zero-copy compressed-frame slices, PCM sampling, nested audio plans and the AVI muxer. Skia consumes indexed JPEG frames and supplies the reusable single-surface AVI exporter. Viewer owns the incremental source-waveform control; Workbench owns media authoring, preview preparation and queue actions. The App injects optional `IAudioPreview` output; the browser implementation uses Web Audio and its clock. Native output is not implemented, while native mixing/video/export use the same libraries.
+
+`EditorSession.CaptureSnapshot` copies model and asset metadata but shares immutable encoded byte arrays. History compares payload identity as well as JSON metadata, detecting same-ID byte replacement. Restoring history copies asset metadata again so later renames cannot mutate old snapshots. The encoded-array immutability contract is required for renderer and media cache correctness.
+
+See [MEDIA.md](MEDIA.md) for rational audio sample partitioning, format rejection, cache ownership, preview limits and independent decoder tests.

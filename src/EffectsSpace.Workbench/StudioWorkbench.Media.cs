@@ -22,7 +22,7 @@ public sealed partial class StudioWorkbench
     public int SelectedVideoFrame => Session.Primary is { } layer && _selectedMedia?.Video is { } video
         ? video.FrameAt(LayerTime.Evaluate(layer, Session.Time, Session.Composition.Layers.IndexOf(layer) + 1)) : -1;
     private void InitializeMedia() => _rightPanel.AddTab("Media", Scroll(_mediaPanel));
-    private void OpenMedia() { _rightPanel.Select("Media"); RefreshMedia(); }
+    private void OpenMedia() { _rightPanel.Select("Media"); RefreshMedia(); Focus(FocusState.Programmatic); }
 
     private void RefreshMedia()
     {
@@ -99,7 +99,7 @@ public sealed partial class StudioWorkbench
         Pause(); Viewer.EndText(true);
         var project = Session.CaptureSnapshot(); var comp = project.Compositions.First(c => c.Id == project.ActiveCompositionId);
         var item = new RenderQueueItem { Name = comp.Name, Format = video ? "MJPEG AVI / PCM audio" : "PCM WAVE", Status = "Rendering" };
-        _renderItems.Add(item); _bottomPanel.Select("Render Queue"); RefreshQueue();
+        _renderItems.Add(item); _bottomPanel.Select("Render Queue"); RefreshQueue(); Focus(FocusState.Programmatic);
         var cancellation = new CancellationTokenSource(); _renderCancellation = cancellation;
         try
         {
@@ -121,6 +121,12 @@ public sealed partial class StudioWorkbench
         }
         catch (OperationCanceledException) { item.Status = "Cancelled"; ShowStatus("Media export cancelled; the project was not changed."); }
         catch (Exception ex) { item.Status = "Failed"; item.Error = ex.Message; ShowStatus(ex.Message, true); }
-        finally { if (ReferenceEquals(_renderCancellation, cancellation)) _renderCancellation = null; cancellation.Dispose(); RefreshQueue(); }
+        finally
+        {
+            if (ReferenceEquals(_renderCancellation, cancellation)) _renderCancellation = null;
+            cancellation.Dispose(); RefreshQueue();
+            if (!_disposed && XamlRoot is not null && FocusManager.GetFocusedElement(XamlRoot) is not TextBox)
+                Focus(FocusState.Programmatic);
+        }
     }
 }

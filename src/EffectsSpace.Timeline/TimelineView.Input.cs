@@ -21,7 +21,8 @@ public sealed partial class TimelineView
             var ctrl = e.KeyModifiers.HasFlag(VirtualKeyModifiers.Control);
             if (_down.X < HeaderWidth)
             {
-                var row = RowAt(_down.Y); if (row is null) return;
+                var row = RowAt(_down.Y);
+                if (row is null) { e.Handled = true; ViewChanged?.Invoke(); return; }
                 if (!row.IsProperty && _down.X < 62)
                     Session.Edit("Layer switch", () =>
                     {
