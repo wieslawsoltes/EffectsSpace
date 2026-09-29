@@ -82,7 +82,7 @@ dotnet pack src/EffectsSpace.Core -c Release -o artifacts/packages
 dotnet pack src/EffectsSpace.Workbench -c Release -o artifacts/packages
 ```
 
-The Uno packages multi-target desktop and browser. Install `wasm-tools` before packing them. Build artifacts contain NuGet packages; repository automation does not imply the packages are already published to nuget.org. The optional publish workflow requires an explicit package-feed credential supplied by the repository owner.
+The Uno packages multi-target desktop and browser. Install `wasm-tools` before packing them. Tagged releases publish every package to NuGet.org, e.g. `dotnet add package EffectsSpace.Workbench`.
 
 ## Portable media
 

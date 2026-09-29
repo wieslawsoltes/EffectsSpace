@@ -4,33 +4,104 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing version tag to build
+      version:
+        description: Version for a dry run (tags publish; manual runs only build and upload artifacts)
         required: true
-        type: string
+        default: '0.1.0-alpha.1'
 permissions:
   contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  APP_NAME: EffectsSpace
+  APP_PROJECT: src/EffectsSpace.App
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
 jobs:
   validate:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
     steps:
-      - name: Validate tag syntax
-        id: tag
+      - name: Resolve release version
+        id: v
         env:
-          TAG: ${{ inputs.tag || github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        shell: bash
         run: |
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          VERSION="$INPUT_VERSION"
+          if [ "$REF_TYPE" = tag ]; then VERSION="${REF_NAME#v}"; fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "Invalid version '$VERSION'" >&2; exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  desktop:
+    name: Desktop (${{ matrix.rid }})
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [win-x64, win-arm64, linux-x64, linux-arm64, osx-x64, osx-arm64]
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+      RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: python3 scripts/fetch-assets.py
+      - name: Publish self-contained single-file executable
+        shell: bash
+        run: |
+          dotnet publish "$APP_PROJECT" -c Release -f net10.0-desktop -r "$RID" --self-contained true \
+            -p:EffectsSpaceDesktopOnly=true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true \
+            -p:DebugType=none -p:DebugSymbols=false -p:Version="$VERSION" \
+            -o "artifacts/desktop/$RID"
+      - name: Package executable
+        shell: bash
+        run: |
+          OUT="artifacts/desktop/$RID"
+          find "$OUT" -name '*.pdb' -delete
+          mkdir -p artifacts/dist
+          BASE="$APP_NAME-$VERSION-$RID"
+          if [[ "$RID" == win-* ]]; then
+            mv "$OUT/$APP_NAME.App.exe" "$OUT/$APP_NAME.exe"
+            test "$(find "$OUT" -type f | wc -l)" -eq 1
+            (cd "$OUT" && zip -q "$GITHUB_WORKSPACE/artifacts/dist/$BASE.zip" "$APP_NAME.exe")
+          else
+            mv "$OUT/$APP_NAME.App" "$OUT/$APP_NAME"
+            chmod +x "$OUT/$APP_NAME"
+            test "$(find "$OUT" -type f | wc -l)" -eq 1
+            tar -C "$OUT" -czf "artifacts/dist/$BASE.tar.gz" "$APP_NAME"
+          fi
+          ls -la artifacts/dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.rid }}
+          path: artifacts/dist/*
+          if-no-files-found: error
+
   browser:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.validate.outputs.tag }}
+          persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -51,7 +122,7 @@ jobs:
           command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
           python3 scripts/verify-media.py
           python3 scripts/verify-audio.py
-          dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release -o artifacts/publish -p:WasmShellWebAppBasePath=/EffectsSpace/
+          dotnet publish src/EffectsSpace.App -f net10.0-browserwasm -c Release -o artifacts/publish -p:Version="$VERSION" -p:WasmShellWebAppBasePath=/EffectsSpace/
           python3 scripts/collect-site.py artifacts/publish artifacts/site
       - name: Validate release browser interactions
         run: |
@@ -61,14 +132,22 @@ jobs:
           npm run test:browser
       - name: Archive browser, sources and reusable packages
         run: |
-          mkdir -p artifacts/release
+          mkdir -p artifacts/release artifacts/packages
           cd artifacts/site && zip -qr ../release/EffectsSpace-browser.zip . && cd ../..
           git archive --format=zip --output=artifacts/release/EffectsSpace-source.zip HEAD
-          for project in src/*/*.csproj; do case "$project" in */EffectsSpace.App/*) continue;; esac; dotnet pack "$project" -c Release -o artifacts/release; done
+          for project in src/*/*.csproj; do case "$project" in */EffectsSpace.App/*) continue;; esac; dotnet pack "$project" -c Release -o artifacts/packages -p:Version="$VERSION"; done
+          cp artifacts/packages/*.nupkg artifacts/packages/*.snupkg artifacts/release/
       - uses: actions/upload-artifact@v7
         with:
           name: release-browser-packages-source
           path: artifacts/release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -80,60 +159,86 @@ jobs:
             artifacts/audio
             artifacts/performance
           if-no-files-found: ignore
-  native:
-    needs: validate
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            rid: win-x64
-          - os: ubuntu-latest
-            rid: linux-x64
-          - os: macos-latest
-            rid: osx-arm64
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.validate.outputs.tag }}
-      - uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-      - run: python scripts/fetch-assets.py
-      - name: Publish self-contained native application
-        run: dotnet publish src/EffectsSpace.App -f net10.0-desktop -c Release -r ${{ matrix.rid }} --self-contained true -p:EffectsSpaceDesktopOnly=true -o artifacts/native
-      - name: Archive native output
-        shell: bash
-        run: python -c "import shutil; shutil.make_archive('EffectsSpace-${{ matrix.rid }}', 'zip', 'artifacts/native')"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: release-${{ matrix.rid }}
-          path: EffectsSpace-${{ matrix.rid }}.zip
-  publish:
-    needs: [validate, browser, native]
+
+  release:
+    needs: [validate, browser, desktop]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - uses: actions/download-artifact@v8
         with:
-          pattern: release-*
+          name: release-browser-packages-source
+          path: release
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
           merge-multiple: true
           path: release
-      - name: Checksums and GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          TAG: ${{ needs.validate.outputs.tag }}
+      - name: Generate release checksums
+        shell: bash
         run: |
           set -euo pipefail
           cd release
           shopt -s nullglob
-          FILES=(*.zip *.nupkg *.snupkg)
+          FILES=(*.zip *.tar.gz *.nupkg *.snupkg)
           ((${#FILES[@]} > 0)) || { echo 'No release payloads were downloaded'; exit 1; }
           sha256sum "${FILES[@]}" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: EffectsSpace-release
+          path: release/*
+          if-no-files-found: error
+      - name: Publish GitHub release for version tag
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
           FLAGS=()
-          if [[ "$TAG" == *-* ]]; then FLAGS+=(--prerelease); fi
-          gh release create "$TAG" --repo "$REPOSITORY" --verify-tag --title "EffectsSpace $TAG" --generate-notes "${FLAGS[@]}" "${FILES[@]}" SHA256SUMS.txt
+          if [[ "$VERSION" == *-* ]]; then FLAGS+=(--prerelease); fi
+          if gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$REPOSITORY" --clobber ./*
+          else
+            gh release create "$TAG" --repo "$REPOSITORY" --verify-tag --title "EffectsSpace $TAG" --generate-notes "${FLAGS[@]}" ./*
+          fi
+
+  nuget:
+    name: Publish to NuGet.org (Trusted Publishing)
+    needs: [validate, release]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: nuget
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: nuget-packages
+          path: packages
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check NuGet user
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
+        run: test -n "$NUGET_USER" || { echo 'Set the NUGET_USER variable (your nuget.org profile name) for this repository or its nuget environment.' >&2; exit 1; }
+      - name: NuGet login (OIDC → short-lived API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER || secrets.NUGET_USER }}
+      - name: Push packages
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "packages/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate

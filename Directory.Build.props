@@ -6,17 +6,25 @@
     <Version>0.1.0-alpha.1</Version>
     <EffectsSpaceSkiaVersion>3.119.2</EffectsSpaceSkiaVersion>
     <SkiaSharpVersion>$(EffectsSpaceSkiaVersion)</SkiaSharpVersion>
-    <Authors>Wiesław Šoltés; EffectsSpace contributors</Authors>
+    <Authors>Wiesław Šoltés</Authors>
+    <Company>Wiesław Šoltés</Company>
+    <Copyright>Copyright © 2026 Wiesław Šoltés</Copyright>
     <RepositoryUrl>https://github.com/wieslawsoltes/EffectsSpace</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/wieslawsoltes/EffectsSpace</PackageProjectUrl>
+    <PackageProjectUrl>https://wieslawsoltes.github.io/UnoSpace/projects/effectsspace/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageTags>effectsspace;motion-design;compositing;animation;keyframes;visual-effects;uno-platform;skiasharp;webassembly;desktop</PackageTags>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
-  <ItemGroup><None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" /></ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)build/icon.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
 </Project>

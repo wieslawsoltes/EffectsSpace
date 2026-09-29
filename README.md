@@ -90,6 +90,20 @@ npm run test:browser
 
 The Skia test projects include Linux native assets. Native applications resolve platform-specific assets through Uno. A green native build is not native interactive or device-output certification.
 
+## Download
+
+Every [release](https://github.com/wieslawsoltes/EffectsSpace/releases/latest) ships a self-contained, single-file desktop app — no .NET install needed:
+
+| OS | x64 | Arm64 |
+| --- | --- | --- |
+| Windows | `EffectsSpace-<version>-win-x64.zip` | `EffectsSpace-<version>-win-arm64.zip` |
+| macOS | `EffectsSpace-<version>-osx-x64.tar.gz` | `EffectsSpace-<version>-osx-arm64.tar.gz` |
+| Linux | `EffectsSpace-<version>-linux-x64.tar.gz` | `EffectsSpace-<version>-linux-arm64.tar.gz` |
+
+Extract and run `EffectsSpace` (`EffectsSpace.exe` on Windows). Builds are not code-signed yet: on macOS clear the quarantine flag with `xattr -d com.apple.quarantine EffectsSpace`; on Windows choose **More info → Run anyway** in SmartScreen. Verify downloads against `SHA256SUMS.txt`. Releases also include the browser build and a source archive.
+
+The libraries below are published to [NuGet.org](https://www.nuget.org/packages?q=EffectsSpace), e.g. `dotnet add package EffectsSpace.Core`.
+
 ## Eleven reusable packages
 
 | Package | Responsibility |
@@ -106,7 +120,7 @@ The Skia test projects include Linux native assets. Native applications resolve 
 | `EffectsSpace.Timeline` | Row-cached timeline, clip/key editing, marquee and value/velocity graphs |
 | `EffectsSpace.Workbench` | Panels, media/delivery settings, transport, queue and document workflows |
 
-All eleven libraries are packable; the app is a thin platform host. Build artifacts contain `.nupkg`/`.snupkg` files. Their creation is not publication to nuget.org. The optional external-publish workflow requires an explicit repository-owner credential.
+All eleven libraries are published to NuGet.org with symbols; the app is a thin platform host.
 
 ## Keyboard essentials
 
@@ -141,7 +155,7 @@ Benchmarks are emitted under `artifacts/performance`: compositor raster submissi
 
 EffectsSpace is **MIT licensed**. Uno Platform core is **Apache-2.0**, SkiaSharp **MIT**, Skia **BSD-style**, and Inter **SIL OFL**. FFmpeg/ffprobe are test-only interoperability tools, not bundled runtime dependencies. Preserve actual transitive notices; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Build gates engine, rendered-pixel, signal-quality and real-browser tests before Pages can deploy its matching artifact. Pages verifies the merged commit and repeats browser tests against the public site. Desktop builds cover Windows, macOS and Linux. Release automation creates artifacts and checksums; signing/notarization is not configured by default.
+Build gates engine, rendered-pixel, signal-quality and real-browser tests before Pages can deploy its matching artifact. Pages verifies the merged commit and repeats browser tests against the public site. Desktop builds cover Windows, macOS and Linux. **Release** runs for `v*` tags or a supplied manual version. It runs the engine, media, audio and real-browser gates, publishes self-contained single-file desktop executables for Windows, macOS and Linux (x64 and arm64), builds the browser and source archives, packs all eleven versioned libraries with symbols and emits `SHA256SUMS.txt`. Tags attach all assets to a GitHub Release and publish the packages to NuGet.org with [Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing) (OIDC, no stored API key) from the protected `nuget` environment. Manual runs are dry runs: they build and upload every asset as workflow artifacts but publish nothing. Signing/notarization is not configured by default.
 
 ## Independence
 

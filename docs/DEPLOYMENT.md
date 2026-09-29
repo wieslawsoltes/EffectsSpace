@@ -16,11 +16,11 @@ Manual Pages dispatch selects the latest successful main Build. It still refuses
 
 ## Desktop
 
-`desktop.yml` builds the shared native host on Windows, macOS and Linux. Those checks establish compilation, not a native UI acceptance run or signed distribution. The release workflow publishes self-contained desktop bundles for selected runtime identifiers. macOS signing/notarization and Windows signing are not configured by default.
+`desktop.yml` builds the shared native host on Windows, macOS and Linux. Those checks establish compilation, not a native UI acceptance run or signed distribution. The release workflow publishes self-contained single-file executables for win/linux/osx x64 and arm64. macOS signing/notarization and Windows signing are not configured by default.
 
 ## Release
 
-Push a version tag such as `v0.1.0-alpha.1`, or use the release workflow's manual input. The workflow validates the requested tag, builds browser and native outputs, packs libraries, and publishes a prerelease/release with checksums. It uses the repository `GITHUB_TOKEN`, not a credential embedded in source. Publishing to an external NuGet feed is a separate explicit workflow and requires the owner to configure `NUGET_API_KEY`.
+Push a version tag such as `v0.1.0-alpha.1` to publish. The workflow validates the version, runs the engine/media/browser gates, builds browser and single-file desktop outputs, packs versioned libraries, and publishes a prerelease/release with checksums using the repository `GITHUB_TOKEN`. It then pushes the packages to NuGet.org with [Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing) from the protected `nuget` environment: `NuGet/login` exchanges the job's OIDC token for a short-lived key, so no NuGet API key is stored. The `NUGET_USER` variable names the nuget.org account. A manual dispatch with a version input is a dry run that builds and uploads every asset as workflow artifacts but publishes nothing.
 
 ## Artifact inventory
 
@@ -34,4 +34,4 @@ Never use an artifact from a different commit to support a current-build claim. 
 
 ## Media gates
 
-Build, Release and Publish NuGet also run the portable-media and real-frame integration executables, then independently decode the generated AVI files with FFmpeg/ffprobe. FFmpeg is installed only as a CI verification tool and is not copied into application or library artifacts. Build uploads the original/generated media and `media-index.json` benchmark for inspection. Library packaging now produces eleven packages, including `EffectsSpace.Media`.
+Build and Release also run the portable-media and real-frame integration executables, then independently decode the generated AVI files with FFmpeg/ffprobe. FFmpeg is installed only as a CI verification tool and is not copied into application or library artifacts. Build uploads the original/generated media and `media-index.json` benchmark for inspection. Library packaging now produces eleven packages, including `EffectsSpace.Media`.
