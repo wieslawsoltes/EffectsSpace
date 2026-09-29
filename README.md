@@ -9,6 +9,8 @@
 [![Pages](https://github.com/wieslawsoltes/EffectsSpace/actions/workflows/pages.yml/badge.svg)](https://github.com/wieslawsoltes/EffectsSpace/actions/workflows/pages.yml)
 [![Audio Fidelity](https://github.com/wieslawsoltes/EffectsSpace/actions/workflows/audio.yml/badge.svg)](https://github.com/wieslawsoltes/EffectsSpace/actions/workflows/audio.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-A994EC.svg)](LICENSE)
+[![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Core.svg?label=NuGet)](https://www.nuget.org/packages/EffectsSpace.Core)
+[![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Core.svg)](https://www.nuget.org/packages/EffectsSpace.Core)
 
 [Open the browser studio](https://wieslawsoltes.github.io/EffectsSpace/) · [User guide](docs/USER-GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Feature ledger](docs/FEATURES.md)
 
@@ -102,25 +104,417 @@ Every [release](https://github.com/wieslawsoltes/EffectsSpace/releases/latest) s
 
 Extract and run `EffectsSpace` (`EffectsSpace.exe` on Windows). Builds are not code-signed yet: on macOS clear the quarantine flag with `xattr -d com.apple.quarantine EffectsSpace`; on Windows choose **More info → Run anyway** in SmartScreen. Verify downloads against `SHA256SUMS.txt`. Releases also include the browser build and a source archive.
 
-The libraries below are published to [NuGet.org](https://www.nuget.org/packages?q=EffectsSpace), e.g. `dotnet add package EffectsSpace.Core`.
+## NuGet packages
 
-## Eleven reusable packages
+The studio is built from eleven MIT-licensed packages that are versioned and released together; the app itself is a thin platform host. Seven packages (`Core` through `Skia`) target plain `net10.0` and have no UI dependency; only `EffectsSpace.Skia` pulls in SkiaSharp. `Controls`, `Viewer`, `Timeline` and `Workbench` are Uno Platform libraries targeting `net10.0-desktop` and `net10.0-browserwasm`. Every package ships symbols to NuGet.org (`.snupkg`) with SourceLink.
 
-| Package | Responsibility |
-|---|---|
-| `EffectsSpace.Core` | Compositions, layers, paths, effects, channels and rational time |
-| `EffectsSpace.Animation` | Curves, derivatives, easing, transforms and bounded expressions |
-| `EffectsSpace.Documents` | Versioned JSON, validation, budgets and storage/audio-output contracts |
-| `EffectsSpace.Editing` | Transactions, selection-aware history, keyframe clipboard and commands |
-| `EffectsSpace.Rendering` | Indexed frame evaluation, render plans, hit testing and export schedules |
-| `EffectsSpace.Media` | RIFF/AVI/WAVE, PCM indexing, stereo windows, sinc sampling, mixing and muxing |
-| `EffectsSpace.Skia` | Compositing, filters/masks, resource caches and PNG/AVI rendering |
-| `EffectsSpace.Controls` | Original studio chrome, icons, choices, splitters and numeric scrubbing |
-| `EffectsSpace.Viewer` | Camera, selection, transforms, paths, inline text, mask editing and waveform |
-| `EffectsSpace.Timeline` | Row-cached timeline, clip/key editing, marquee and value/velocity graphs |
-| `EffectsSpace.Workbench` | Panels, media/delivery settings, transport, queue and document workflows |
+```sh
+dotnet add package EffectsSpace.Core --prerelease
+```
 
-All eleven libraries are published to NuGet.org with symbols; the app is a thin platform host.
+| Package | Version | Downloads | Description |
+| --- | --- | --- | --- |
+| [EffectsSpace.Core](https://www.nuget.org/packages/EffectsSpace.Core) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Core.svg)](https://www.nuget.org/packages/EffectsSpace.Core) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Core.svg)](https://www.nuget.org/packages/EffectsSpace.Core) | Compositions, layers, channels, keyframes, paths, effects and rational time |
+| [EffectsSpace.Animation](https://www.nuget.org/packages/EffectsSpace.Animation) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Animation.svg)](https://www.nuget.org/packages/EffectsSpace.Animation) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Animation.svg)](https://www.nuget.org/packages/EffectsSpace.Animation) | Keyframe curves, velocity, transform evaluation and bounded scalar expressions |
+| [EffectsSpace.Documents](https://www.nuget.org/packages/EffectsSpace.Documents) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Documents.svg)](https://www.nuget.org/packages/EffectsSpace.Documents) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Documents.svg)](https://www.nuget.org/packages/EffectsSpace.Documents) | Versioned JSON, validation, budgets and storage/audio-output contracts |
+| [EffectsSpace.Editing](https://www.nuget.org/packages/EffectsSpace.Editing) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Editing.svg)](https://www.nuget.org/packages/EffectsSpace.Editing) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Editing.svg)](https://www.nuget.org/packages/EffectsSpace.Editing) | Atomic transactions, undo/redo, layer/keyframe commands and sample compositions |
+| [EffectsSpace.Rendering](https://www.nuget.org/packages/EffectsSpace.Rendering) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Rendering.svg)](https://www.nuget.org/packages/EffectsSpace.Rendering) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Rendering.svg)](https://www.nuget.org/packages/EffectsSpace.Rendering) | Renderer-neutral frame evaluation, hit testing, budgets and export schedules |
+| [EffectsSpace.Media](https://www.nuget.org/packages/EffectsSpace.Media) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Media.svg)](https://www.nuget.org/packages/EffectsSpace.Media) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Media.svg)](https://www.nuget.org/packages/EffectsSpace.Media) | RIFF/WAVE and Motion JPEG AVI, PCM indexing, sinc resampling, mixing and muxing |
+| [EffectsSpace.Skia](https://www.nuget.org/packages/EffectsSpace.Skia) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Skia.svg)](https://www.nuget.org/packages/EffectsSpace.Skia) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Skia.svg)](https://www.nuget.org/packages/EffectsSpace.Skia) | Skia compositing, effects, masks, resource caches and PNG/AVI export |
+| [EffectsSpace.Controls](https://www.nuget.org/packages/EffectsSpace.Controls) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Controls.svg)](https://www.nuget.org/packages/EffectsSpace.Controls) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Controls.svg)](https://www.nuget.org/packages/EffectsSpace.Controls) | Compact Uno studio chrome, icons, choices, panels, splitters and numeric scrubbing |
+| [EffectsSpace.Viewer](https://www.nuget.org/packages/EffectsSpace.Viewer) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Viewer.svg)](https://www.nuget.org/packages/EffectsSpace.Viewer) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Viewer.svg)](https://www.nuget.org/packages/EffectsSpace.Viewer) | Uno composition viewer: camera, tools, transforms, paths, text, masks and waveform |
+| [EffectsSpace.Timeline](https://www.nuget.org/packages/EffectsSpace.Timeline) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Timeline.svg)](https://www.nuget.org/packages/EffectsSpace.Timeline) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Timeline.svg)](https://www.nuget.org/packages/EffectsSpace.Timeline) | Uno timeline: clip/key editing, marquee and value/velocity graphs |
+| [EffectsSpace.Workbench](https://www.nuget.org/packages/EffectsSpace.Workbench) | [![NuGet](https://img.shields.io/nuget/vpre/EffectsSpace.Workbench.svg)](https://www.nuget.org/packages/EffectsSpace.Workbench) | [![Downloads](https://img.shields.io/nuget/dt/EffectsSpace.Workbench.svg)](https://www.nuget.org/packages/EffectsSpace.Workbench) | Complete Uno studio: panels, inspectors, transport, render queue and document workflows |
+
+Dependencies (from project references):
+
+```text
+Core ← Animation, Documents
+Animation + Documents ← Editing
+Animation ← Rendering, Media
+Rendering + Media (+ SkiaSharp) ← Skia
+Core ← Controls (Uno)
+Controls + Editing + Skia ← Viewer
+Controls + Editing + Rendering ← Timeline
+Viewer + Timeline ← Workbench
+```
+
+More integration detail: [Embedding](docs/EMBEDDING.md) and [Portable media](docs/MEDIA.md).
+
+### EffectsSpace.Core
+
+The serializable motion-design model: projects, compositions, layers (shapes, text, media, nested compositions, adjustments), animatable channels, keyframes, masks, paths, effects and markers, plus exact rational frame rates. Use it alone to generate or inspect compositions. No dependencies beyond .NET; no UI.
+
+```sh
+dotnet add package EffectsSpace.Core --prerelease
+```
+
+**Key types**
+
+- `MotionProject` / `Composition` / `Layer` — the document tree; `MotionProject.Empty()` creates one composition.
+- `Channel` / `Keyframe` / `Interpolation` — animatable values with Linear, Hold and Bezier keys and optional expressions.
+- `AnimatedTransform` — position, anchor, scale, rotation and opacity channels.
+- `EffectCatalog` / `LayerEffect` / `EffectKind` — effect definitions and parameter channels.
+- `LayerChannels` — stable property paths (`"X"`, `"fx/<id>/Radius"`) for editors and tooling.
+- `FrameRate` — `Frame`, `Seconds`, `Snap`, `Timecode`.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Core;
+
+var comp = new Composition { Name = "Title card", FrameRate = new(30, 1), Duration = 4, WorkEnd = 4 };
+var card = new Layer { Kind = LayerKind.Rectangle, Name = "Card", Width = 640, Height = 360, OutPoint = 4 };
+card.Transform.X.Value = 960; card.Transform.Y.Value = 540;
+card.Transform.AnchorX.Value = 320; card.Transform.AnchorY.Value = 180;
+card.Transform.Opacity.SetKey(0, 0);
+card.Transform.Opacity.SetKey(1, 100, Interpolation.Linear);
+card.Effects.Add(EffectCatalog.Create(EffectKind.DropShadow));
+comp.Layers.Add(card);
+
+var project = new MotionProject { Name = "Demo", ActiveCompositionId = comp.Id, Compositions = [comp] };
+foreach (AnimatedProperty property in LayerChannels.Enumerate(card))
+    Console.WriteLine($"{property.Path}: {property.Name}");
+string tc = comp.FrameRate.Timecode(2.5);   // "00:00:02:15"
+```
+
+### EffectsSpace.Animation
+
+Deterministic evaluation of channels: Bezier/linear/hold curves, signed velocity, layer transforms through parent chains, time remapping and a bounded, side-effect-free scalar expression language (not JavaScript). Depends on `EffectsSpace.Core`; no UI.
+
+```sh
+dotnet add package EffectsSpace.Animation --prerelease
+```
+
+**Key types**
+
+- `CurveEvaluator` — `Evaluate(channel, time)` including expressions; `EvaluateKeys`, `Bezier`.
+- `CurveVelocity.TryEvaluate` — signed derivative for graphs and motion blur.
+- `TransformEvaluator` — `Local`, `World`, `ToWorld`, `ToLocal` matrices/points.
+- `ScalarExpression.TryEvaluate` — bounded expressions with authoring diagnostics.
+- `LayerTime.Evaluate` — source time from offsets, stretch or time remap.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Animation;
+using EffectsSpace.Core;
+
+var opacity = new Channel(100);
+opacity.SetKey(0, 0, Interpolation.Bezier);
+opacity.SetKey(1, 100);
+double halfway = CurveEvaluator.Evaluate(opacity, 0.5);
+bool moving = CurveVelocity.TryEvaluate(opacity, 0.5, out double perSecond);
+
+var rotation = new Channel(0) { Expression = "value + time * 45" };
+double angle = CurveEvaluator.Evaluate(rotation, 2);   // 90
+
+if (!ScalarExpression.TryEvaluate("sin(time) * 100", time: 1, value: 0, index: 1, out double result, out string? error))
+    Console.WriteLine(error);
+```
+
+### EffectsSpace.Documents
+
+Persistence and host contracts: versioned `.effects` JSON with validation of schema, references, budgets and embedded media, plus UI-free interfaces that platform hosts implement for recovery, file picking/saving and audio output. Depends on `EffectsSpace.Core`; no UI.
+
+```sh
+dotnet add package EffectsSpace.Documents --prerelease
+```
+
+**Key types**
+
+- `ProjectJson` — `Save`, `Load` (validating), `Clone`, `CloneLayer`, shared `Options`.
+- `ProjectValidator.Validate` — throws on invalid or over-budget documents.
+- `IWorkspaceStorage` / `ImportedFile` — recovery, import and export boundary used by the workbench.
+- `IAudioPreview` — optional platform audio output and playback clock.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Core;
+using EffectsSpace.Documents;
+
+string json = ProjectJson.Save(MotionProject.Empty());
+MotionProject project = ProjectJson.Load(json);   // validates on load
+
+sealed class FolderStorage(string root) : IWorkspaceStorage
+{
+    string Recovery => Path.Combine(root, "recovery.effects");
+    public async Task<string?> ReadRecoveryAsync() => File.Exists(Recovery) ? await File.ReadAllTextAsync(Recovery) : null;
+    public Task WriteRecoveryAsync(string json) => File.WriteAllTextAsync(Recovery, json);
+    public Task<IReadOnlyList<ImportedFile>> PickFilesAsync(bool projectOnly = false) => Task.FromResult<IReadOnlyList<ImportedFile>>([]);
+    public Task SaveFileAsync(string name, string mimeType, byte[] data) => File.WriteAllBytesAsync(Path.Combine(root, name), data);
+}
+```
+
+### EffectsSpace.Editing
+
+The editing model behind the studio: `EditorSession` owns selection, current time, auto-key and snapshot-based undo/redo; extension methods implement layer, keyframe, masking, precompose and time-remap commands. Also contains the original ORBITAL `SampleProject`. Depends on `Animation` and `Documents`; no UI.
+
+```sh
+dotnet add package EffectsSpace.Editing --prerelease
+```
+
+**Key types**
+
+- `EditorSession` — `Edit`, `BeginEdit`/`PreviewChanged`/`CommitEdit`/`CancelEdit`, `Undo`/`Redo`, `SetTime`, `Select`, `Changed`.
+- `EditorCommands` — `AddLayer`, `SetProperty`, `AddKey`, `AddEffect`, `AddMask`, `Precompose`, `SplitSelection`, …
+- `KeyframeCommands` — multi-key copy/cut/paste, ease, interpolate, nudge.
+- `CompositingCommands` — `EnableTimeRemap`, `FreezeFrame`, `ReverseTime`, `ToggleGuide`.
+- `SampleProject.Create()` — the editable ORBITAL study.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Core;
+using EffectsSpace.Documents;
+using EffectsSpace.Editing;
+
+var session = new EditorSession(MotionProject.Empty());
+Layer layer = session.AddLayer(LayerKind.Rectangle);   // added and selected
+session.AutoKey = true;
+session.SetProperty("X", 250);
+session.SetTime(1);
+session.SetProperty("X", 700);
+session.AddEffect(EffectKind.GaussianBlur);
+
+session.BeginEdit("Drag");                             // interactive gesture
+layer.Transform.Y.Value += 40; session.PreviewChanged();
+session.CommitEdit();                                  // one undo step; CancelEdit on Escape
+
+session.Undo();
+string json = ProjectJson.Save(session.Project);
+```
+
+### EffectsSpace.Rendering
+
+Renderer-neutral evaluation: resolves which layers are visible at a time, their world matrices, opacity and source time, with shared parent transforms evaluated once. Also provides hit testing, render budgets and deterministic export frame schedules. Depends on `EffectsSpace.Animation`; no UI or graphics library.
+
+```sh
+dotnet add package EffectsSpace.Rendering --prerelease
+```
+
+**Key types**
+
+- `CompositionFrame` — evaluation snapshot for one composition/time; `Layers`, `Find(id)`.
+- `RenderLayer` / `RenderPlan` — layer + `World` matrix, `Opacity`, `SourceTime`, stacking `Index`.
+- `RenderPlanner` — `Build`, `HitTest`, `ExportTimes`.
+- `RenderBudget` — dimension, pixel and nesting limits.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Core;
+using EffectsSpace.Editing;
+using EffectsSpace.Rendering;
+
+Composition comp = SampleProject.Create().Compositions[0];
+
+var frame = new CompositionFrame(comp, time: 2.4);
+foreach (RenderLayer item in frame.Layers)
+    Console.WriteLine($"{item.Layer.Name}: opacity {item.Opacity:0.00}, world {item.World}");
+
+Layer? hit = RenderPlanner.HitTest(comp, 2.4, new Vec2(960, 540));
+double[] times = RenderPlanner.ExportTimes(comp).ToArray();   // work-area frame times
+RenderBudget.Default.Check(3840, 2160);                         // throws when over budget
+```
+
+### EffectsSpace.Media
+
+Portable, bounded media without native codecs: RIFF/WAVE and classic Motion JPEG AVI readers, zero-copy PCM indexing, band-limited sinc resampling, a nested-composition audio mixer and AVI/WAVE writers. Runs identically on desktop and WebAssembly. Depends on `EffectsSpace.Animation`; no Uno or Skia.
+
+```sh
+dotnet add package EffectsSpace.Media --prerelease
+```
+
+**Key types**
+
+- `AviSource` — `Read`, `FrameAt`, `FrameData` (JPEG slices), optional `Audio`.
+- `WaveFile` / `PcmSource` — WAVE parsing and sample access; `WaveFile.Encode` for quick output.
+- `AudioMixer` — prepared composition mix; `Mix`, `WaveAsync`.
+- `WaveRenderer` / `WavePcmWriter` — PCM16/PCM24/Float32 delivery with optional TPDF dither.
+- `MjpegAviWriter` — forward-only AVI muxing of JPEG frames and PCM16.
+- `MediaCatalog` — cached metadata/indexes keyed by asset payload.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Media;
+
+AviSource video = AviSource.Read(aviBytes);                  // MJPEG AVI, optional PCM
+ReadOnlyMemory<byte> jpeg = video.FrameData(video.FrameAt(0.5));
+PcmSource audio = WaveFile.Read(wavBytes);
+float left = audio.Sample(0.25, channel: 0);
+
+var mixer = new AudioMixer(project, composition, quality: AudioResamplingQuality.BandLimited);
+var stereo = new float[4096 * 2];
+mixer.Mix(startTime: 0, firstFrame: 0, stereo, sampleRate: 48000);
+byte[] wave = await WaveRenderer.RenderAsync(mixer, 0, 2, WaveEncoding.Pcm24,
+    dither: true, cancellationToken: cancellationToken);
+```
+
+### EffectsSpace.Skia
+
+The compositor: draws a composition at a time into any `SKCanvas` with blend modes, mattes, masks, effects, motion blur, nested compositions and decoded video frames, using bounded geometry/filter/image caches. Exporters produce PNG frames, PNG sequences and Motion JPEG AVI with sound. Depends on `Rendering`, `Media` and SkiaSharp; no UI framework (headless hosts need Skia native assets and a typeface for text).
+
+```sh
+dotnet add package EffectsSpace.Skia --prerelease
+```
+
+**Key types**
+
+- `SkiaCompositor` — `Render(canvas, project, composition, time)`, `Typeface`, `Budget`, `Metrics`; `IDisposable`.
+- `FrameExporter` — `Png`, `PngSequenceAsync`.
+- `AviExporter` — `ExportAsync` to Motion JPEG AVI with mixed PCM audio.
+- `EffectPipeline`, `PathGeometry` — Skia filters and paths for layers.
+- `MediaStudy.Create` — the CLOCKWORK media sample.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Editing;
+using EffectsSpace.Skia;
+using SkiaSharp;
+
+var project = SampleProject.Create();
+var composition = project.Compositions[0];
+
+using var compositor = new SkiaCompositor { Typeface = SKTypeface.Default };
+byte[] png = new FrameExporter(compositor).Png(project, composition, time: 2.4, width: 960);
+byte[] avi = await new AviExporter(compositor).ExportAsync(project, composition, width: 960);
+
+using var surface = SKSurface.Create(new SKImageInfo(composition.Width, composition.Height));
+compositor.Render(surface.Canvas, project, composition, time: 2.4, includeGuides: false);
+```
+
+### EffectsSpace.Controls
+
+Original compact studio chrome for Uno: vector icons, buttons, drop-down choices, tabbed panels, splitters and scrub-to-edit numeric fields with begin/preview/commit/cancel events. Depends on `EffectsSpace.Core`; requires Uno Platform (Skia renderer).
+
+```sh
+dotnet add package EffectsSpace.Controls --prerelease
+```
+
+**Key types**
+
+- `NumericField` — scrub/type numeric input; `EditStarted`, `ValueChanging`, `EditCompleted`, `EditCancelled`.
+- `StudioButton` / `StudioIcon` / `IconKind` — icon buttons and standalone vector icons.
+- `StudioPanel` — tabbed panel; `AddTab`, `Select`, `TabChanged`.
+- `StudioChoice`, `StudioSplitter` — compact choice list and draggable splitter.
+- `Studio` — palette constants, `Brush`, `Text`, `Input`, `Row` helpers.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Controls;
+
+var opacity = new NumericField("Opacity", 100) { Minimum = 0, Maximum = 100 };
+opacity.ValueChanging += value => Preview(value);
+opacity.EditCompleted += Commit;
+
+var panel = new StudioPanel();
+panel.AddTab("Properties", Studio.Row(Studio.Text("Opacity"), opacity));
+panel.AddTab("Actions", new StudioButton("Render", () => Render(), IconKind.Render));
+window.Content = panel;   // your Uno Window
+```
+
+### EffectsSpace.Viewer
+
+The interactive composition viewer: draws through `SkiaCompositor` into Uno's Skia canvas and supports pan/zoom, selection, direct transform/anchor/rotation manipulation, pen paths, inline text, mask editing and an audio waveform view. Depends on `Controls`, `Editing` and `Skia`; requires Uno Platform (Skia renderer).
+
+```sh
+dotnet add package EffectsSpace.Viewer --prerelease
+```
+
+**Key types**
+
+- `CompositionView(EditorSession)` — `Tool`, `Fit`, `SetZoom`, `ShowGrid`, `ShowGuides`, `ShowTransparency`, `Renderer`; `IDisposable`.
+- `ViewerTool` — Select, Hand, Zoom, Rotate, Anchor, shapes, Pen, Text.
+- `MaskEditView(CompositionView)` — transactional mask node/tangent editing overlay.
+- `AudioWaveformView` — `SetSource(PcmSource)`, `Playhead`.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Editing;
+using EffectsSpace.Viewer;
+
+var session = new EditorSession(SampleProject.Create());
+var viewer = new CompositionView(session) { Tool = ViewerTool.Select, ShowGrid = true };
+viewer.Error += message => Console.Error.WriteLine(message);
+window.Content = viewer;                     // your Uno Window
+viewer.Loaded += (_, _) => viewer.Fit();
+window.Closed += (_, _) => viewer.Dispose();
+```
+
+### EffectsSpace.Timeline
+
+The composition timeline: row-cached layer bars, trimming, keyframe selection/marquee/drag, property filtering and value/velocity graph editing with Bezier handles, all bound to an `EditorSession`. Depends on `Controls`, `Editing` and `Rendering`; requires Uno Platform (Skia renderer).
+
+```sh
+dotnet add package EffectsSpace.Timeline --prerelease
+```
+
+**Key types**
+
+- `TimelineView(EditorSession)` — `Fit`, `ZoomBy`, `GraphMode`, `GraphKind`, `ShowProperties`, `RevealProperty`; `IDisposable`.
+- `GraphKind` — `Value` or `Velocity`.
+- `TimelineRow` — the laid-out layer/property rows.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Editing;
+using EffectsSpace.Timeline;
+
+var session = new EditorSession(SampleProject.Create());
+var timeline = new TimelineView(session);
+timeline.Error += message => Console.Error.WriteLine(message);
+window.Content = timeline;                   // your Uno Window
+timeline.Loaded += (_, _) => timeline.Fit();
+
+timeline.RevealProperty("Opacity");           // expand and scroll to a property
+timeline.GraphMode = true;                    // curve editor
+timeline.GraphKind = GraphKind.Velocity;
+```
+
+`CompositionView` and `TimelineView` can share one session and do not require the full workbench.
+
+### EffectsSpace.Workbench
+
+The complete studio as one `UserControl`: project bin, viewer, timeline and graph, inspectors, effect/mask panels, media and audio-delivery settings, transport with audio clock, render queue and open/save/import/export workflows. The host supplies an `IWorkspaceStorage` (and optionally `IAudioPreview`). Depends on `Viewer` and `Timeline`; requires Uno Platform (Skia renderer).
+
+```sh
+dotnet add package EffectsSpace.Workbench --prerelease
+```
+
+**Key types**
+
+- `StudioWorkbench(EditorSession, IWorkspaceStorage)` — the studio control; `IDisposable`.
+- `Session`, `Viewer`, `Timeline`, `MaskEditor` — access to the embedded parts.
+- `SaveAsync`, `OpenAsync`, `ImportAsync`, `ExportFrameAsync`, `ExportAviAsync`, `ExportAudioAsync`, `TogglePlayback`, `ShowStatus`.
+
+**Usage**
+
+```csharp
+using EffectsSpace.Controls;
+using EffectsSpace.Documents;
+using EffectsSpace.Editing;
+using EffectsSpace.Workbench;
+
+protected override void OnLaunched(LaunchActivatedEventArgs args)
+{
+    var window = new Window { Title = "EffectsSpace" };
+    IWorkspaceStorage storage = new MyWorkspaceStorage();   // your platform implementation
+    var workbench = new StudioWorkbench(new EditorSession(SampleProject.Create()), storage);
+    workbench.Viewer.Renderer.Typeface = Studio.Typeface;
+    window.Content = workbench;
+    window.Closed += (_, _) => workbench.Dispose();
+    window.Activate();
+}
+```
+
+`src/EffectsSpace.App` contains complete desktop (`DesktopWorkspaceStorage`) and browser (`BrowserWorkspaceStorage`) implementations.
 
 ## Keyboard essentials
 
